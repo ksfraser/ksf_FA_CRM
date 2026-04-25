@@ -1,0 +1,11 @@
+{
+    "name": "ksfraser/ksf_FA_CRM",
+    "description": "Standalone FA_CRM",
+    "type": "project",
+    "require": {
+        "ksfraser/ksf_topic": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    }
+}
