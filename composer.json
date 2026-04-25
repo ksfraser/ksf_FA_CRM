@@ -1,11 +1,17 @@
 {
-    "name": "ksfraser/ksf_FA_CRM",
-    "description": "Standalone FA_CRM",
+    "name": "ksfraser/ksf_fa_crm",
+    "description": "Standalone FA_CRM UI - includes UI, DB service, controller",
     "type": "project",
     "require": {
-        "ksfraser/ksf_topic": "*"
+        "ksfraser/database": "*",
+        "ksfraser/ksf_modulesdao": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ksf\\FA_CRM\\": "includes/"
+        }
     }
 }
