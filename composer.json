@@ -1,18 +1,44 @@
 {
-    "name": "ksfraser/ksf_fa_crm",
-    "description": "FrontAccounting CRM Adapter - UI, DB service, controller",
-    "type": "project",
+    "name": "ksfraser/ksf-fa-crm",
+    "description": "FrontAccounting CRM Adapter",
+    "type": "fa-module",
     "require": {
-        "php": ">=7.4"
+        "php": ">=7.4",
+        "ksfraser/exceptions": "^1.2",
+        "ksfraser/traits": "^1.2",
+        "ksfraser/rbac": "*",
+        "ksfraser/gedcom": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0"
     },
     "autoload": {
         "psr-4": {
-            "ksf\\FA_CRM\\": "includes/",
-            "ksf\\": "includes/"
+            "Ksfraser\\FA\\CRM\\": "src/Ksfraser/FA/CRM/",
+            "Ksfraser\\FA\\CRM\\Services\\": "includes/"
         }
     },
-    "minimum-stability": "stable"
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../ksf_CRM",
+            "canonical": false
+        },
+        {
+            "type": "path",
+            "url": "../ksf_RBAC",
+            "canonical": false
+        },
+        {
+            "type": "path",
+            "url": "../Traits",
+            "canonical": false
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/ksfraser/ksf_CRM_GEDCOM"
+        }
+    ]
 }
