@@ -151,3 +151,69 @@
 - FR-014.2 The module shall declare `ksfraser/traits ^1.2` as a composer dependency.
 - FR-014.3 The module shall declare `ksfraser/gedcom *` as a composer dependency (sourced from `https://github.com/ksfraser/ksf_CRM_GEDCOM`).
 - FR-014.4 The module shall optionally depend on `ksfraser/rbac` for record-level access control.
+
+---
+
+## FR-015 GPG Key Management for Customers
+**Satisfies**: BR-016
+
+- FR-015.1 The system shall provide a link to manage GPG keys for each customer.
+- FR-015.2 The system shall call the common GPG key management screen with `contact_type=customer`.
+- FR-015.3 The system shall display GPG key status (has key, fingerprint) on customer summary.
+- FR-015.4 The system shall allow customers to register their GPG public key via the portal.
+
+### Implementation TODO
+```php
+// TODO: Add GPG key management link to customer page
+// In customer detail view:
+echo "<a href='modules/ksf_FA_GPG/pages/key_management.php?contact_type=customer&contact_id=" . $debtor_no . "'>";
+echo _("Manage GPG Key");
+echo "</a>";
+
+// TODO: Display GPG key status on customer summary
+// Check if customer has GPG key:
+$data = ['contact_type' => 'customer', 'contact_id' => $debtor_no];
+$hasKey = hook_invoke('ksf_FA_GPG', 'hasCapability', $data, ['capability' => 'sign']);
+```
+
+---
+
+## FR-016 GPG Email Integration
+**Satisfies**: BR-017
+
+- FR-016.1 The system shall support GPG signing of customer communications.
+- FR-016.2 The system shall support GPG encryption when encrypt flag is set.
+- FR-016.3 The system shall automatically lookup customer GPG keys on keyservers.
+
+### Implementation TODO
+```php
+// TODO: Add GPG signing to email sending
+// When sending email to customer:
+$data = [
+    'contact_type' => 'customer',
+    'contact_id' => $debtor_no,
+    'email' => $customerEmail,
+    'file_path' => $attachmentPath,
+];
+hook_invoke_all('gpg_sign', $data);
+```
+
+---
+
+## FR-017 GPG Key Portal Registration
+**Satisfies**: BR-018
+
+- FR-017.1 The customer portal shall allow customers to register their GPG public key.
+- FR-017.2 The portal shall accept pasted key text or file upload.
+- FR-017.3 The portal shall validate key format before storing.
+- FR-017.4 The portal shall display key fingerprint for confirmation.
+
+### Implementation TODO
+```php
+// TODO: Add GPG key registration page to customer portal
+// Create pages/gpg_key_registration.php:
+// - Form to paste GPG public key
+// - File upload for key
+// - Validation and fingerprint display
+// - Store key via hook_invoke
+```
