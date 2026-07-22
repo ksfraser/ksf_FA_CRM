@@ -181,21 +181,30 @@ $hasKey = hook_invoke('ksf_FA_GPG', 'hasCapability', $data, ['capability' => 'si
 ## FR-016 GPG Email Integration
 **Satisfies**: BR-017
 
-- FR-016.1 The system shall support GPG signing of customer communications.
-- FR-016.2 The system shall support GPG encryption when encrypt flag is set.
+- FR-016.1 The system shall support GPG signing of customer communications (via EmailManager).
+- FR-016.2 The system shall support GPG encryption of attachments BEFORE calling EmailManager.
 - FR-016.3 The system shall automatically lookup customer GPG keys on keyservers.
+- FR-016.4 EmailManager ONLY signs - CRM is responsible for encryption.
+
+### Architecture Note
+```
+CRM flow: encrypt file → save encrypted version → call EmailManager → signs + sends
+Calendar flow: generate .ics → call EmailManager → signs + sends (NO encryption)
+```
 
 ### Implementation TODO
 ```php
-// TODO: Add GPG signing to email sending
-// When sending email to customer:
+// TODO: Add GPG encryption to CRM email sending
+// When sending email with sensitive attachment:
+$encryptedPath = $gpgService->encryptForContact($attachmentPath, $customerEmail);
+// Save encrypted file, then call EmailManager:
 $data = [
     'contact_type' => 'customer',
     'contact_id' => $debtor_no,
     'email' => $customerEmail,
-    'file_path' => $attachmentPath,
+    'file_path' => $encryptedPath,  // Pass encrypted file
 ];
-hook_invoke_all('gpg_sign', $data);
+hook_invoke_all('gpg_sign', $data);  // EmailManager signs only
 ```
 
 ---
