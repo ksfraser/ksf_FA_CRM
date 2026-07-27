@@ -1,7 +1,7 @@
 -- ============================================================================
 -- ksf_FA_CRM Module Installation SQL
 -- ============================================================================
--- Uses @TB_PREF@ placeholder which is replaced by FA's update_databases()
+-- Uses 0_ prefix for table names (FA convention for install.sql)
 -- ============================================================================
 
 -- ============================================================================
@@ -9,7 +9,7 @@
 -- ============================================================================
 
 -- CRM Customers table (extends FA debtors)
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_customers` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_customers` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `debtor_no` VARCHAR(20) NOT NULL,
     `customer_type_id` INT(11) DEFAULT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_customers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Contacts table
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_contacts` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_contacts` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `debtor_no` VARCHAR(20) NOT NULL,
     `contact_role_id` INT(11) DEFAULT NULL,
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_contacts` (
 -- Links two crm_persons with a relationship type.
 -- Directed relationships (parent->child) use is_directed=1.
 -- Undirected relationships (spouse) use is_directed=0.
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_contact_relationships` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_contact_relationships` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `person_a_id` INT(11) NOT NULL COMMENT 'FK to crm_persons.id',
     `person_b_id` INT(11) NOT NULL COMMENT 'FK to crm_persons.id',
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_contact_relationships` (
 -- ============================================================================
 -- Links two debtor accounts (debtors_master) for ownership/subsidiary hierarchies.
 -- Examples: Trust -> HoldCo -> OpCo, Parent Company -> Subsidiary
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_account_relationships` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_account_relationships` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `parent_debtor_no` VARCHAR(20) NOT NULL COMMENT 'FK to debtors_master.debtor_no',
     `child_debtor_no` VARCHAR(20) NOT NULL COMMENT 'FK to debtors_master.debtor_no',
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_account_relationships` (
 -- ============================================================================
 -- Links a person to an account with a specific role.
 -- Examples: director, beneficiary, trustee, employee, owner, signatory
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_person_account_roles` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_person_account_roles` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `person_id` INT(11) NOT NULL COMMENT 'FK to crm_persons.id',
     `debtor_no` VARCHAR(20) NOT NULL COMMENT 'FK to debtors_master.debtor_no',
@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_person_account_roles` (
 -- ============================================================================
 -- Stores birth, death, marriage, divorce, and custom business events.
 -- details_json holds free-form structured data for any event type.
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_life_events` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_life_events` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `person_id` INT(11) NOT NULL COMMENT 'FK to crm_persons.id',
     `event_type` VARCHAR(20) NOT NULL COMMENT 'BIRT, DEAT, MARR, DIV, EDUC, RETI, CUST',
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_life_events` (
 -- ============================================================================
 
 -- CRM Opportunities table
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_opportunities` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_opportunities` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `opportunity_name` VARCHAR(100) NOT NULL,
     `debtor_no` VARCHAR(20) DEFAULT NULL,
@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_opportunities` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Communications table
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_communications` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_communications` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `debtor_no` VARCHAR(20) DEFAULT NULL,
     `contact_id` INT(11) DEFAULT NULL,
@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_communications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Customer Types
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_customer_types` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_customer_types` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(50) NOT NULL,
     `description` VARCHAR(255) DEFAULT NULL,
@@ -236,7 +236,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_customer_types` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Territories
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_territories` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_territories` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(50) NOT NULL,
     `description` VARCHAR(255) DEFAULT NULL,
@@ -247,7 +247,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_territories` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Activity Log
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_activity_log` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_activity_log` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `activity_type` VARCHAR(30) NOT NULL,
     `entity_type` VARCHAR(30) NOT NULL,
@@ -266,7 +266,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_activity_log` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Leads
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_leads` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_leads` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `debtor_no` VARCHAR(20) NOT NULL,
     `lead_source` VARCHAR(50) DEFAULT NULL,
@@ -293,7 +293,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_leads` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Contact Accounts (cross-account contact assignments)
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_contact_accounts` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_contact_accounts` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `contact_id` INT(11) NOT NULL,
     `debtor_no` VARCHAR(20) NOT NULL,
@@ -306,7 +306,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_contact_accounts` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Realms (opportunity realms/categories)
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_realms` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_realms` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(50) NOT NULL,
     `description` VARCHAR(255) DEFAULT NULL,
@@ -321,7 +321,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_realms` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Quotes
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_quotes` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_quotes` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `quote_no` VARCHAR(30) NOT NULL,
     `opportunity_id` INT(11) DEFAULT NULL,
@@ -353,7 +353,7 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_quotes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Quote Items
-CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_quote_items` (
+CREATE TABLE IF NOT EXISTS `0_fa_crm_quote_items` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `quote_id` INT(11) NOT NULL,
     `line_number` INT(11) DEFAULT 0,
@@ -372,14 +372,14 @@ CREATE TABLE IF NOT EXISTS `@TB_PREF@fa_crm_quote_items` (
 -- Insert Initial Data
 -- ============================================================================
 
-INSERT IGNORE INTO `@TB_PREF@fa_crm_customer_types` (`name`, `description`, `sort_order`) VALUES
+INSERT IGNORE INTO `0_fa_crm_customer_types` (`name`, `description`, `sort_order`) VALUES
 ('Prospect', 'Potential new customer', 1),
 ('Active', 'Current active customer', 2),
 ('Inactive', 'Former customer', 3),
 ('VIP', 'High-value customer', 4),
 ('Partner', 'Business partner', 5);
 
-INSERT IGNORE INTO `@TB_PREF@fa_crm_territories` (`name`, `description`, `region`, `sort_order`) VALUES
+INSERT IGNORE INTO `0_fa_crm_territories` (`name`, `description`, `region`, `sort_order`) VALUES
 ('North', 'Northern region', 'North', 1),
 ('South', 'Southern region', 'South', 2),
 ('East', 'Eastern region', 'East', 3),

@@ -8,51 +8,40 @@
  * @version 1.0.0
  */
 
+// Bootstrap Composer autoloader so that namespaced classes are available.
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+
+// Load ksf_FA_Common's ComposerDependencies utility.
+$composerDepsPath = dirname(__DIR__) . '/ksf_FA_Common/src/Utils/ComposerDependencies.php';
+if (file_exists($composerDepsPath)) {
+    require_once $composerDepsPath;
+    \ksfraser\FrontAccounting\Common\Utils\ComposerDependencies::ensure(__DIR__);
+}
+
 define('SS_CRM', 114 << 8);
 
 require_once dirname(__FILE__) . '/includes/crm_tags.inc';
 
 class hooks_ksf_FA_CRM extends hooks {
-    use \Ksfraser\Traits\HookQueryProviderTrait;
 
     var $module_name = 'ksf_FA_CRM';
     var $version = '1.0.0';
 
     /**
-     * Add menu items to existing FA applications
+     * Install the CRM application tab in FA sidebar.
      *
      * @param application $app FA application instance
      */
-    function install_options($app) {
-        global $path_to_root;
-
-        switch($app->id) {
-            case 'sales':
-                $app->add_lapp_function(0, _("CRM Dashboard"),
-                    $path_to_root."/modules/".$this->module_name."/pages/dashboard.php", 'SA_CRM_DASHBOARD', MENU_MAIN);
-                $app->add_lapp_function(1, _("CRM Customers"),
-                    $path_to_root."/modules/".$this->module_name."/pages/customers.php", 'SA_CRM_CUSTOMER', MENU_ENTRY);
-                $app->add_lapp_function(1, _("Opportunities"),
-                    $path_to_root."/modules/".$this->module_name."/pages/opportunities.php", 'SA_CRM_OPPORTUNITY', MENU_ENTRY);
-                $app->add_lapp_function(2, _("Communications Log"),
-                    $path_to_root."/modules/".$this->module_name."/pages/communications.php", 'SA_CRM_COMMUNICATION', MENU_INQUIRY);
-                $app->add_rapp_function(3, _("CRM Setup"),
-                    $path_to_root."/modules/".$this->module_name."/pages/setup.php", 'SA_CRM_SETUP', MENU_MAINTENANCE);
-                $app->add_rapp_function(3, _("GEDCOM Import"),
-                    $path_to_root."/modules/".$this->module_name."/pages/gedcom_import.php", 'SA_CRM_GEDCOM', MENU_ENTRY);
-                $app->add_rapp_function(3, _("GEDCOM Export"),
-                    $path_to_root."/modules/".$this->module_name."/pages/gedcom_export.php", 'SA_CRM_GEDCOM', MENU_ENTRY);
-                break;
-            case 'system':
-            case 'admin':
-                $app->add_lapp_function(0, _("CRM Tags"),
-                    $path_to_root."/modules/".$this->module_name."/pages/crm_tags.php", 'SA_CRM_TAGS', MENU_MAINTENANCE);
-                break;
-        }
+    function install_tabs($app) {
+        set_ext_domain('modules/ksf_FA_CRM');
+        $app->add_application(new crm_app());
+        set_ext_domain();
     }
 
     /**
-     * Define security areas and sections
+     * Define security areas and sections.
      *
      * @return array [0] => $security_areas, [1] => $security_sections
      */
@@ -78,11 +67,11 @@ class hooks_ksf_FA_CRM extends hooks {
     }
 
     /**
-     * Advertise module capabilities for other modules (RBAC, Calendar, etc.)
+     * Advertise module capabilities for other modules (RBAC, Calendar, etc.).
      *
      * @return array Namespaced key-value pairs
      */
-    protected function _getAdvertisedValues(): array
+    protected function _getAdvertisedValues()
     {
         return array(
             'crm.hooks_version' => '1.0',
@@ -93,7 +82,7 @@ class hooks_ksf_FA_CRM extends hooks {
     }
 
     /**
-     * Activate extension - runs SQL installation
+     * Activate extension — runs SQL installation.
      *
      * @param int $company Company number
      * @param bool $check_only Only check if activation possible
@@ -101,12 +90,12 @@ class hooks_ksf_FA_CRM extends hooks {
      */
     function activate_extension($company, $check_only=true) {
         $this->ensure_composer_dependencies();
-        $updates = array('install.sql' => array($this->module_name));
+        $updates = array('install.sql' => array('fa_crm_customers'));
         return $this->update_databases($company, $updates, $check_only);
     }
 
     /**
-     * Install composer dependencies if vendor/ is missing
+     * Install composer dependencies if vendor/ is missing.
      */
     private function ensure_composer_dependencies() {
         $module_dir = dirname(__FILE__);
@@ -128,5 +117,36 @@ class hooks_ksf_FA_CRM extends hooks {
         if ($return_code !== 0) {
             error_log('ksf_FA_CRM: composer install failed: ' . implode("\n", $output));
         }
+    }
+}
+
+class crm_app extends application {
+    function __construct() {
+        parent::__construct("CRM", _($this->help_context = "&CRM"));
+
+        $this->add_module(_("CRM"));
+
+        $menu = new \ksfraser\FrontAccounting\Common\Menu\FAModuleMenu(
+            'modules/ksf_FA_CRM/index.php',
+            'view',
+            ''
+        );
+
+        $menu->addItem('dashboard',        _("&Dashboard"),        MENU_MAIN)
+             ->addItem('contacts',          _("Contacts"),          MENU_INQUIRY)
+             ->addItem('customers',         _("Customers"),         MENU_INQUIRY)
+             ->addItem('leads',             _("Leads"),             MENU_ENTRY)
+             ->addItem('opportunities',     _("Opportunities"),     MENU_ENTRY)
+             ->addItem('communications',    _("Communications"),    MENU_INQUIRY)
+             ->addItem('meetings',          _("Meetings"),          MENU_ENTRY)
+             ->addItem('quotes',            _("Quotes"),            MENU_ENTRY)
+             ->addItem('customer_types',    _("Customer Types"),    MENU_SETTINGS)
+             ->addItem('territories',       _("Territories"),       MENU_SETTINGS)
+             ->addItem('tags',              _("Tags"),              MENU_SETTINGS)
+             ->addItem('email_accounts',    _("Email Accounts"),    MENU_SETTINGS);
+
+        $menu->registerWithApp($this, 'SA_CRM_DASHBOARD');
+
+        $this->add_extensions();
     }
 }
