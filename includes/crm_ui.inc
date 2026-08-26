@@ -412,6 +412,101 @@ function territories_list_row($label, $name, $value = null)
 }
 
 /**
+ * Territories dropdown (cell-only variant for use inside start_row/end_row)
+ */
+function territories_list_cells($label, $name, $value = null, $new_label = null, $show_inactive = false)
+{
+	global $db;
+
+	$sql = "SELECT id, territory_name FROM " . TB_PREF . "crm_territories";
+	if (!$show_inactive) {
+		$sql .= " WHERE inactive = 0";
+	}
+	$sql .= " ORDER BY territory_name";
+	$result = db_query($sql);
+
+	$options = array('' => _("Select Territory"));
+	while ($territory = db_fetch($result)) {
+		$options[$territory['id']] = $territory['territory_name'];
+	}
+	if ($new_label !== null) {
+		$options[''] = $new_label;
+	}
+
+	echo '<td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $options);
+	echo '</td>';
+}
+
+/**
+ * Customer types dropdown (cell-only variant for use inside start_row/end_row)
+ */
+function customer_types_list_cells($label, $name, $value = null, $new_label = null, $show_inactive = false)
+{
+	$types = get_customer_types(!$show_inactive);
+	$options = array('' => _("Select Type"));
+
+	while ($type = db_fetch($types)) {
+		$options[$type['id']] = $type['type_name'];
+	}
+	if ($new_label !== null) {
+		$options[''] = $new_label;
+	}
+
+	echo '<td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $options);
+	echo '</td>';
+}
+
+/**
+ * Opportunities dropdown row
+ */
+function opportunity_row($label, $name, $value = null)
+{
+	global $db;
+
+	$sql = "SELECT id, opportunity_name FROM " . TB_PREF . "fa_crm_opportunities WHERE status != 'cancelled' ORDER BY opportunity_name";
+	$result = db_query($sql);
+
+	$options = array('' => _("Select Opportunity"));
+	while ($opp = db_fetch($result)) {
+		$options[$opp['id']] = $opp['opportunity_name'];
+	}
+
+	echo '<tr><td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $options);
+	echo '</td></tr>';
+}
+
+/**
+ * Contacts dropdown row (filtered by customer/debtor)
+ */
+function contact_row($label, $name, $value = null, $debtor_no = null)
+{
+	global $db;
+
+	$sql = "SELECT id, first_name, last_name, email FROM " . TB_PREF . "fa_crm_contacts WHERE active = 1";
+	if ($debtor_no) {
+		$sql .= " AND debtor_no = " . (int)$debtor_no;
+	}
+	$sql .= " ORDER BY last_name, first_name";
+	$result = db_query($sql);
+
+	$options = array('' => _("Select Contact"));
+	while ($contact = db_fetch($result)) {
+		$display = $contact['last_name'] . ', ' . $contact['first_name'];
+		if ($contact['email']) {
+			$display .= ' (' . $contact['email'] . ')';
+		}
+		$options[$contact['id']] = $display;
+	}
+
+	echo '<tr><td class="label">' . $label . '</td><td>';
+	echo array_selector($name, $value, $options);
+	echo '</td></tr>';
+}
+
+/**
  * Contact roles dropdown
  */
 function contact_roles_list_row($label, $name, $value = null)
@@ -551,119 +646,6 @@ function sales_stage_list_row($label, $name, $value = null)
 
 	echo '<tr><td class="label">' . $label . '</td><td>';
 	echo array_selector($name, $value, $stages);
-	echo '</td></tr>';
-}
-
-/**
- * Meeting type dropdown
- */
-function meeting_type_list_row($label, $name, $value = null)
-{
-	$types = array(
-		'meeting' => _("Meeting"),
-		'call' => _("Phone Call"),
-		'presentation' => _("Presentation"),
-		'training' => _("Training"),
-		'other' => _("Other")
-	);
-
-	echo '<tr><td class="label">' . $label . '</td><td>';
-	echo array_selector($name, $value, $types);
-	echo '</td></tr>';
-}
-
-/**
- * Location type dropdown
- */
-function location_type_list_row($label, $name, $value = null)
-{
-	$types = array(
-		'physical' => _("Physical Location"),
-		'virtual' => _("Virtual Meeting"),
-		'phone' => _("Phone Conference")
-	);
-
-	echo '<tr><td class="label">' . $label . '</td><td>';
-	echo array_selector($name, $value, $types);
-	echo '</td></tr>';
-}
-
-/**
- * Meeting rooms dropdown
- */
-function meeting_rooms_list_row($label, $name, $value = null)
-{
-	global $db;
-
-	$sql = "SELECT id, room_name, room_type FROM " . TB_PREF . "crm_meeting_rooms WHERE active = 1 ORDER BY room_name";
-	$result = db_query($sql);
-
-	$options = array('' => _("Select Room"));
-	while ($room = db_fetch($result)) {
-		$type_label = '';
-		switch ($room['room_type']) {
-			case 'physical': $type_label = ' (Physical)'; break;
-			case 'virtual': $type_label = ' (Virtual)'; break;
-			case 'phone': $type_label = ' (Phone)'; break;
-		}
-		$options[$room['id']] = $room['room_name'] . $type_label;
-	}
-
-	echo '<tr><td class="label">' . $label . '</td><td>';
-	echo array_selector($name, $value, $options);
-	echo '</td></tr>';
-}
-
-/**
- * Meeting status dropdown
- */
-function meeting_status_list_row($label, $name, $value = null)
-{
-	$statuses = array(
-		'planned' => _("Planned"),
-		'confirmed' => _("Confirmed"),
-		'in_progress' => _("In Progress"),
-		'completed' => _("Completed"),
-		'cancelled' => _("Cancelled"),
-		'postponed' => _("Postponed")
-	);
-
-	echo '<tr><td class="label">' . $label . '</td><td>';
-	echo array_selector($name, $value, $statuses);
-	echo '</td></tr>';
-}
-
-/**
- * Attendee role dropdown
- */
-function attendee_role_list_row($label, $name, $value = null)
-{
-	$roles = array(
-		'organizer' => _("Organizer"),
-		'required' => _("Required"),
-		'optional' => _("Optional"),
-		'resource' => _("Resource")
-	);
-
-	echo '<tr><td class="label">' . $label . '</td><td>';
-	echo array_selector($name, $value, $roles);
-	echo '</td></tr>';
-}
-
-/**
- * Response status dropdown
- */
-function response_status_list_row($label, $name, $value = null)
-{
-	$statuses = array(
-		'pending' => _("Pending"),
-		'accepted' => _("Accepted"),
-		'declined' => _("Declined"),
-		'tentative' => _("Tentative")
-	);
-
-	echo '<tr><td class="label">' . $label . '</td><td>';
-	echo array_selector($name, $value, $statuses);
 	echo '</td></tr>';
 }
 

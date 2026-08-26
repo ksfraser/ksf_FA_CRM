@@ -1,17 +1,103 @@
 <?php
-/**
- * ksf_FA_CRM Module Hooks for FrontAccounting
- *
- * CRM adapter hooks: security, menu items, and DB installation.
- *
- * @package ksf_FA_CRM
- * @version 1.0.0
- */
 
-// Bootstrap Composer autoloader so that namespaced classes are available.
-if (file_exists(__DIR__ . '/vendor/autoload.php')) {
-    require_once __DIR__ . '/vendor/autoload.php';
-}
+declare(strict_types=1);
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+/**
+ * KSF FrontAccounting Module Hooks
+ * 
+ * @package KSF\FA\CRM
+ */
+class hooks_ksf_FA_CRM extends hooks
+{
+    // Import the new traits for workflow and CRUD operations
+    use \ksfraser\FrontAccounting\Common\Traits\WorkflowHooksTrait;
+    use \ksfraser\FrontAccounting\Common\Traits\CrudOperationsTrait;
+
+    /**
+     * Module version and details
+     */
+    var $module_name = 'ksf_FA_CRM';
+    var $version = '1.0.0';
+
+    /**
+     * Install the module - creates tables and initializes data
+     */
+    function install_extension($check_only = true)
+    {
+        $this->ensure_composer_dependencies();
+        $this->install_schema();
+        return true;
+    }
+
+    /**
+     * Activate the extension for a company
+     */
+    function activate_extension($company, $check_only = true)
+    {
+        $this->ensure_composer_dependencies();
+        $this->install_schema();
+        
+        // Register workflow types for CRM records
+        $this->registerWorkflowType('customer', 'crm_customer');
+        $this->registerWorkflowType('contact', 'crm_contact');
+        $this->registerWorkflowType('opportunity', 'crm_opportunity');
+        $this->registerWorkflowType('communication', 'crm_communication');
+        $this->registerWorkflowType('lead', 'crm_lead');
+        $this->registerWorkflowType('meeting', 'crm_meeting');
+        
+        return true;
+    }
+
+    /**
+     * Create a customer record with workflow support
+     *
+     * @param array $data Customer data
+     * @param bool $isNew Is this a new customer?
+     * @return array Created customer data with metadata
+     */
+    function createCustomer(array $data, bool $isNew = false)
+    {
+        return $this->createRecord('customer', $data, $isNew);
+    }
+
+    /**
+     * Create a contact record
+     *
+     * @param array $data Contact data
+     * @return array Created contact
+     */
+    function createContact(array $data)
+    {
+        return $this->createRecord('contact', $data);
+    }
+
+    /**
+     * Override internal creation methods for CRM-specific behavior
+     * This ensures CRM-specific hooks fire properly
+     */
+    protected function createRecordInternal(string $recordType, array $data): array
+    {
+        // CRM-specific implementation here
+        // This would call the appropriate crm_db.inc functions
+        // and trigger CRM-specific hooks
+        
+        // For now, just return the data - real implementation would be more complex
+        return $data;
+    }
+
+    /**
+     * Override deletion for CRM-specific behavior
+     */
+    protected function deleteRecordInternal(string $recordType, array $data): array
+    {
+        // CRM-specific deletion logic
+        // Would call appropriate crm_db.inc functions
+        // and trigger CRM-specific hooks
+        
+        return $data;
+    }
 
 // Load ksf_FA_Common's ComposerDependencies utility.
 $composerDepsPath = dirname(__DIR__) . '/ksf_FA_Common/src/Utils/ComposerDependencies.php';
@@ -62,6 +148,11 @@ class hooks_ksf_FA_CRM extends hooks {
         $security_areas['SA_CRM_EMAIL_ACCOUNT'] = array(SS_CRM | 12, _("CRM Email Accounts"));
         $security_areas['SA_CRM_TAGS'] = array(SS_CRM | 13, _("CRM Tags"));
         $security_areas['SA_CRM_GEDCOM'] = array(SS_CRM | 14, _("GEDCOM Import/Export"));
+        $security_areas['SA_CRM_ORG_CHART'] = array(SS_CRM | 15, _("Organization Chart"));
+        $security_areas['SA_CRM_LIFE_EVENTS'] = array(SS_CRM | 16, _("Life Events"));
+        $security_areas['SA_CRM_PERSON_ACCOUNT_ROLES'] = array(SS_CRM | 17, _("Person Account Roles"));
+        $security_areas['SA_CRM_ACCOUNT_RELATIONSHIPS'] = array(SS_CRM | 18, _("Account Relationships"));
+        $security_areas['SA_CRM_CONTACT_RELATIONSHIPS'] = array(SS_CRM | 19, _("Contact Relationships"));
 
         return array($security_areas, $security_sections);
     }

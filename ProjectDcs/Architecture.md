@@ -1,4 +1,15 @@
-# Architecture - ksf_FA_CRM
+# AR-001 System Architecture Overview
+
+## Document Information
+- **Module**: ksf_FA_CRM
+- **Version**: 2.0.0
+- **Date**: 2026-05-25
+- **Status**: Implemented
+- **Author**: KSFII Development Team
+
+## 1. Purpose
+
+ksf_FA_CRM serves as the FrontAccounting platform adapter for CRM business logic. It connects FA's procedural PHP framework with domain entities from `ksf_CRM` and integrates security via ksf_RBAC.
 
 ## Document Information
 - **Module**: ksf_FA_CRM

@@ -1,128 +1,44 @@
-# Business Requirements - ksf_FA_CRM
+# Business Requirements - CRM Access Control (BR-002-CRM-Access-RBAC.md)
 
-## Document Information
-- **Module**: ksf_FA_CRM
-- **Version**: 2.0.0
-- **Date**: 2026-05-25
-- **Status**: Active
-- **Author**: KSFII Development Team
+## Overview
+Implement Role-Based Access Control (RBAC) for the CRM module to enforce access control based on user roles, teams, and positions.
 
----
+## Scope
+- Define access levels for CRM modules (Admin, Team Members, Regular Users)
+- Establish permission matrix linking roles to departments and teams
+- Configure default access policies (READ ONLY, TEAM, FULL)
 
-## BR-001 Customer Relationship Management
+## Requirements
 
-**Priority**: High
+### 1. Role Hierarchy
+- **Administrator** - Full access to all CRM records
+- **Team Member** - Access limited to own team/department
+- **Regular User** - Read-only access to CRM records
 
-The system shall allow users to manage customer records, linking them to FrontAccounting's `debtors_master` accounts, and maintain extended CRM attributes (industry, territory, segment, account manager, credit rating, annual revenue).
+### 2. Access Levels
+- **FULL** - Complete access to all CRM entities (customers, leads, opportunities)
+- **TEAM** - Access restricted to own team/department
+- **READ_ONLY** - Read-only access to CRM records
 
----
+### 3. Default Behavior
+- If RBAC is not installed → Default to READ_ONLY
+- CRM users with Admin FA security → Full access
+- All other users → READ_ONLY or TEAM based on assignment
 
-## BR-002 Opportunity Pipeline
+### 4. Integration Points
+- CRM module: Apply RBAC when accessing customer/lead records
+- HRM module: Cross-module access validation
+- Project Management: Apply RBAC for cross-module access
 
-**Priority**: High
+## Implementation Notes
+- Leverage existing CRM entity hierarchy (Customer → Lead → Opportunity)
+- Use RBAC grid helper for consistent permission mapping
+- Cache RBAC queries to improve performance
+- Document permission matrix in RbacGridHelpers.php
 
-The system shall allow sales staff to track opportunities through a configurable stage pipeline (Lead → Qualified → Proposal → Negotiation → Won/Lost), with probability weighting and realm categorisation.
-
----
-
-## BR-003 Communication Log
-
-**Priority**: High
-
-The system shall maintain a time-ordered log of all communications with a customer (emails, calls, meetings, notes), linked to the relevant contact and opportunity.
-
----
-
-## BR-004 Lead Management
-
-**Priority**: Medium
-
-The system shall support capturing unqualified leads and converting them to CRM customer records when qualified, preserving the lead source and conversion metadata.
-
----
-
-## BR-005 Contact Relationship Mapping
-
-**Priority**: High
-
-The system shall allow recording personal relationships between contact persons (spouse, parent, child, sibling, partner, business partner), supporting family mapping for wealth management, estate planning, and trust/HoldCo/OpCo structures.
-
----
-
-## BR-006 Account Hierarchy Mapping
-
-**Priority**: High
-
-The system shall allow recording structural relationships between accounts (subsidiary, owns, headquarters, branch, contract, approval flow), enabling nested entity visualisation of HoldCo/OpCo/trust structures.
-
----
-
-## BR-007 Person–Account Role Assignment
-
-**Priority**: High
-
-The system shall allow assigning roles for contact persons within accounts (director, manager, employee, shareholder, trustee, beneficiary, signatory), with optional date ranges and a primary contact flag.
-
----
-
-## BR-008 Life Events (GEDCOM-style)
-
-**Priority**: Medium
-
-The system shall support recording structured life and business events for persons and accounts (birth, death, marriage, incorporation, dissolution, acquisition, etc.), with free-form JSON details for extensibility.
-
----
-
-## BR-009 GEDCOM Import
-
-**Priority**: Medium
-
-The system shall support importing GEDCOM 5.5 files to bulk-load person records, family relationships, and life events from genealogy or estate-planning systems.
-
----
-
-## BR-010 GEDCOM Export
-
-**Priority**: Medium
-
-The system shall support exporting selected persons and their relationship network as a GEDCOM 5.5 file, suitable for import into third-party genealogy or estate-planning tools.
-
----
-
-## BR-011 Relationship Org Chart Visualisation
-
-**Priority**: Medium
-
-The system shall provide an interactive graphical org chart of contact and account relationships, with tag-based filtering, ego-centric view toggle, and a detail panel on node selection.
-
----
-
-## BR-012 Tag Management
-
-**Priority**: Low
-
-The system shall allow administrators to define and manage tags for customers, contacts, opportunities, leads, and communications, enabling filtering and segmentation across all CRM entities.
-
----
-
-## BR-013 Territory and Customer Type Taxonomy
-
-**Priority**: Low
-
-The system shall allow administrators to define geographic territories and customer type categories, used for segmentation and reporting.
-
----
-
-## BR-014 Meeting Management
-
-**Priority**: Low
-
-The system shall allow scheduling and recording meetings with contacts, linked to opportunities and communications, with meeting room resource booking.
-
----
-
-## BR-015 Security and Access Control
-
-**Priority**: High
-
-All CRM pages shall be protected by FrontAccounting's security area system. Optional integration with ksf_FA_RBAC shall support record-level visibility control.
+## Acceptance Criteria
+- [ ] CRM Admins can access all records
+- [ ] Team members can only access their assigned team/department
+- [ ] Regular users have READ_ONLY access
+- [ ] RBAC queries are cached for performance
+- [ ] Default fallback to READ_ONLY when RBAC not configured
