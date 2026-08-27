@@ -2,102 +2,15 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/vendor/autoload.php';
-
 /**
- * KSF FrontAccounting Module Hooks
- * 
- * @package KSF\FA\CRM
+ * ksf_FA_CRM Module Hooks for FrontAccounting
+ *
+ * CRM adapter: app tab, security areas, DB installation, workflow hooks,
+ * and reference-data DDL hooks (CustomerType, Territory, Realm).
+ *
+ * @package ksf_FA_CRM
+ * @version 1.0.0
  */
-class hooks_ksf_FA_CRM extends hooks
-{
-    // Import the new traits for workflow and CRUD operations
-    use \ksfraser\FrontAccounting\Common\Traits\WorkflowHooksTrait;
-    use \ksfraser\FrontAccounting\Common\Traits\CrudOperationsTrait;
-
-    /**
-     * Module version and details
-     */
-    var $module_name = 'ksf_FA_CRM';
-    var $version = '1.0.0';
-
-    /**
-     * Install the module - creates tables and initializes data
-     */
-    function install_extension($check_only = true)
-    {
-        $this->ensure_composer_dependencies();
-        $this->install_schema();
-        return true;
-    }
-
-    /**
-     * Activate the extension for a company
-     */
-    function activate_extension($company, $check_only = true)
-    {
-        $this->ensure_composer_dependencies();
-        $this->install_schema();
-        
-        // Register workflow types for CRM records
-        $this->registerWorkflowType('customer', 'crm_customer');
-        $this->registerWorkflowType('contact', 'crm_contact');
-        $this->registerWorkflowType('opportunity', 'crm_opportunity');
-        $this->registerWorkflowType('communication', 'crm_communication');
-        $this->registerWorkflowType('lead', 'crm_lead');
-        $this->registerWorkflowType('meeting', 'crm_meeting');
-        
-        return true;
-    }
-
-    /**
-     * Create a customer record with workflow support
-     *
-     * @param array $data Customer data
-     * @param bool $isNew Is this a new customer?
-     * @return array Created customer data with metadata
-     */
-    function createCustomer(array $data, bool $isNew = false)
-    {
-        return $this->createRecord('customer', $data, $isNew);
-    }
-
-    /**
-     * Create a contact record
-     *
-     * @param array $data Contact data
-     * @return array Created contact
-     */
-    function createContact(array $data)
-    {
-        return $this->createRecord('contact', $data);
-    }
-
-    /**
-     * Override internal creation methods for CRM-specific behavior
-     * This ensures CRM-specific hooks fire properly
-     */
-    protected function createRecordInternal(string $recordType, array $data): array
-    {
-        // CRM-specific implementation here
-        // This would call the appropriate crm_db.inc functions
-        // and trigger CRM-specific hooks
-        
-        // For now, just return the data - real implementation would be more complex
-        return $data;
-    }
-
-    /**
-     * Override deletion for CRM-specific behavior
-     */
-    protected function deleteRecordInternal(string $recordType, array $data): array
-    {
-        // CRM-specific deletion logic
-        // Would call appropriate crm_db.inc functions
-        // and trigger CRM-specific hooks
-        
-        return $data;
-    }
 
 // Load ksf_FA_Common's ComposerDependencies utility.
 $composerDepsPath = dirname(__DIR__) . '/ksf_FA_Common/src/Utils/ComposerDependencies.php';
@@ -208,6 +121,93 @@ class hooks_ksf_FA_CRM extends hooks {
         if ($return_code !== 0) {
             error_log('ksf_FA_CRM: composer install failed: ' . implode("\n", $output));
         }
+    }
+
+    // ─── Customer Type Hooks ───────────────────────────────────────
+
+    function getCustomerTypes(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\CustomerTypeService();
+        return $service->hookGetCustomerTypes($data, $opts);
+    }
+
+    function getCustomerTypeDDL(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\CustomerTypeService();
+        return $service->hookGetCustomerTypeDDL($data, $opts);
+    }
+
+    function getCustomerTypeHtmlOptions(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\CustomerTypeService();
+        return $service->hookGetCustomerTypeHtmlOptions($data, $opts);
+    }
+
+    // ─── Territory Hooks ───────────────────────────────────────────
+
+    function getTerritories(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\TerritoryService();
+        return $service->hookGetTerritories($data, $opts);
+    }
+
+    function getTerritoryDDL(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\TerritoryService();
+        return $service->hookGetTerritoryDDL($data, $opts);
+    }
+
+    function getTerritoryHtmlOptions(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\TerritoryService();
+        return $service->hookGetTerritoryHtmlOptions($data, $opts);
+    }
+
+    // ─── Realm Hooks ───────────────────────────────────────────────
+
+    function getRealms(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\RealmService();
+        return $service->hookGetRealms($data, $opts);
+    }
+
+    function getRealmDDL(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\RealmService();
+        return $service->hookGetRealmDDL($data, $opts);
+    }
+
+    function getRealmHtmlOptions(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\RealmService();
+        return $service->hookGetRealmHtmlOptions($data, $opts);
     }
 }
 
