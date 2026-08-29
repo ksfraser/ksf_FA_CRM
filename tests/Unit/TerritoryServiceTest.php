@@ -236,4 +236,28 @@ class TerritoryServiceTest extends TestCase
         $rendered = $this->service->getDdl(true, '');
         $this->assertStringNotContainsString('value=""', $rendered[0]);
     }
+
+    // ─── Field Metadata (FR-006-007) ─────────────────────────────
+
+    public function testGetFieldMetadataReturnsEntityIdentity(): void
+    {
+        $md = TerritoryService::getFieldMetadata();
+        $this->assertSame('territory', $md['entity']);
+        $this->assertSame('0_fa_crm_territories', $md['table']);
+        $this->assertSame('Territories', $md['labelPlural']);
+        $this->assertSame('id', $md['pk']);
+    }
+
+    public function testGetFieldMetadataIncludesRegionField(): void
+    {
+        $md = TerritoryService::getFieldMetadata();
+        $this->assertArrayHasKey('region', $md['fields']);
+        $this->assertTrue($md['fields']['region']['showInTable']);
+    }
+
+    public function testGetFieldMetadataExposesDdlHooks(): void
+    {
+        $md = TerritoryService::getFieldMetadata();
+        $this->assertSame('hookGetTerritoryDDL', $md['ddlHooks']['getTerritoryDDL']);
+    }
 }

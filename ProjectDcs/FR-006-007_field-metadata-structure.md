@@ -113,7 +113,11 @@ public static function getFieldMetadata(): array
         ],
 
         // ─── Display Settings ─────────────────────────────
-        'table' => [
+        // NOTE: `table` is reserved for the DB table name (see identity
+        // above). Display/sorting settings live under `tableSettings` to
+        // avoid a key collision. This resolves the earlier ambiguity where
+        // both used `table`.
+        'tableSettings' => [
             'orderBy' => 'grade_code ASC',         // default sort
         ],
     ];

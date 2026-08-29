@@ -156,6 +156,105 @@ class RealmService
         self::invalidateCache();
     }
 
+    // ─── Field Metadata (FR-006-007) ─────────────────────────────
+
+    /**
+     * Return field metadata for this entity, consumable by TableView/FieldForm.
+     *
+     * @return array Entity metadata (FR-006-007 schema)
+     * @since 1.0.0
+     */
+    public static function getFieldMetadata(): array
+    {
+        return [
+            'entity'      => 'realm',
+            'table'       => '0_fa_crm_realms',
+            'label'       => 'Realm',
+            'labelPlural' => 'Realms',
+            'hookPrefix'  => 'Realm',
+            'pk'          => 'id',
+            'fields'      => [
+                'id' => [
+                    'label' => 'ID',
+                    'type'  => 'text',
+                    'showInForm' => false,
+                    'showInTable' => true,
+                ],
+                'name' => [
+                    'label' => 'Name',
+                    'type'  => 'text',
+                    'required' => true,
+                    'max' => 100,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-5',
+                ],
+                'description' => [
+                    'label' => 'Description',
+                    'type'  => 'textarea',
+                    'rows' => 2,
+                    'showInTable' => false,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-7',
+                ],
+                'requires_quote' => [
+                    'label' => 'Requires Quote',
+                    'type'  => 'checkbox',
+                    'default' => 0,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-3',
+                ],
+                'requires_project' => [
+                    'label' => 'Requires Project',
+                    'type'  => 'checkbox',
+                    'default' => 0,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-3',
+                ],
+                'default_stage' => [
+                    'label' => 'Default Stage',
+                    'type'  => 'text',
+                    'max' => 50,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-3',
+                ],
+                'stages_json' => [
+                    'label' => 'Stages (JSON)',
+                    'type'  => 'textarea',
+                    'rows' => 2,
+                    'showInTable' => false,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-12',
+                ],
+                'inactive' => [
+                    'label' => 'Inactive',
+                    'type'  => 'checkbox',
+                    'default' => 0,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-2',
+                ],
+                'sort_order' => [
+                    'label' => 'Sort Order',
+                    'type'  => 'number',
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-2',
+                ],
+            ],
+            'fk_ddls'   => [],
+            'ddlHooks'  => [
+                'getRealms'           => 'hookGetRealms',
+                'getRealmDDL'         => 'hookGetRealmDDL',
+                'getRealmHtmlOptions' => 'hookGetRealmHtmlOptions',
+            ],
+            'tableSettings' => ['orderBy' => 'sort_order ASC, name ASC'],
+        ];
+    }
+
     // ─── Hook Response Methods ────────────────────────────────────
 
     public function hookGetRealms(array &$data, $opts = null): array

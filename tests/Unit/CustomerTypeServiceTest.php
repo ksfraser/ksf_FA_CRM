@@ -278,4 +278,31 @@ class CustomerTypeServiceTest extends TestCase
         $rendered = $this->service->getDdl(true, '');
         $this->assertStringNotContainsString('value=""', $rendered[0]);
     }
+
+    // ─── Field Metadata (FR-006-007) ─────────────────────────────
+
+    public function testGetFieldMetadataReturnsEntityIdentity(): void
+    {
+        $md = CustomerTypeService::getFieldMetadata();
+        $this->assertSame('customer_type', $md['entity']);
+        $this->assertSame('0_fa_crm_customer_types', $md['table']);
+        $this->assertSame('Customer Types', $md['labelPlural']);
+        $this->assertSame('id', $md['pk']);
+    }
+
+    public function testGetFieldMetadataIncludesNameField(): void
+    {
+        $md = CustomerTypeService::getFieldMetadata();
+        $this->assertArrayHasKey('name', $md['fields']);
+        $this->assertTrue($md['fields']['name']['required']);
+        $this->assertTrue($md['fields']['name']['showInTable']);
+        $this->assertTrue($md['fields']['name']['showInForm']);
+    }
+
+    public function testGetFieldMetadataExposesDdlHooks(): void
+    {
+        $md = CustomerTypeService::getFieldMetadata();
+        $this->assertArrayHasKey('getCustomerTypeDDL', $md['ddlHooks']);
+        $this->assertSame('hookGetCustomerTypeDDL', $md['ddlHooks']['getCustomerTypeDDL']);
+    }
 }

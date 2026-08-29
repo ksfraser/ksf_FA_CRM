@@ -156,6 +156,81 @@ class TerritoryService
         self::invalidateCache();
     }
 
+    // ─── Field Metadata (FR-006-007) ─────────────────────────────
+
+    /**
+     * Return field metadata for this entity, consumable by TableView/FieldForm.
+     *
+     * @return array Entity metadata (FR-006-007 schema)
+     * @since 1.0.0
+     */
+    public static function getFieldMetadata(): array
+    {
+        return [
+            'entity'      => 'territory',
+            'table'       => '0_fa_crm_territories',
+            'label'       => 'Territory',
+            'labelPlural' => 'Territories',
+            'hookPrefix'  => 'Territory',
+            'pk'          => 'id',
+            'fields'      => [
+                'id' => [
+                    'label' => 'ID',
+                    'type'  => 'text',
+                    'showInForm' => false,
+                    'showInTable' => true,
+                ],
+                'name' => [
+                    'label' => 'Name',
+                    'type'  => 'text',
+                    'required' => true,
+                    'max' => 100,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-4',
+                ],
+                'region' => [
+                    'label' => 'Region',
+                    'type'  => 'text',
+                    'max' => 100,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-3',
+                ],
+                'description' => [
+                    'label' => 'Description',
+                    'type'  => 'textarea',
+                    'rows' => 2,
+                    'showInTable' => false,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-5',
+                ],
+                'inactive' => [
+                    'label' => 'Inactive',
+                    'type'  => 'checkbox',
+                    'default' => 0,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-2',
+                ],
+                'sort_order' => [
+                    'label' => 'Sort Order',
+                    'type'  => 'number',
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-2',
+                ],
+            ],
+            'fk_ddls'   => [],
+            'ddlHooks'  => [
+                'getTerritories'           => 'hookGetTerritories',
+                'getTerritoryDDL'          => 'hookGetTerritoryDDL',
+                'getTerritoryHtmlOptions'  => 'hookGetTerritoryHtmlOptions',
+            ],
+            'tableSettings' => ['orderBy' => 'sort_order ASC, name ASC'],
+        ];
+    }
+
     // ─── Hook Response Methods ────────────────────────────────────
 
     public function hookGetTerritories(array &$data, $opts = null): array

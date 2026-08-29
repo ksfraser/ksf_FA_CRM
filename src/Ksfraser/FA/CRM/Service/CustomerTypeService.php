@@ -156,6 +156,73 @@ class CustomerTypeService
         self::invalidateCache();
     }
 
+    // ─── Field Metadata (FR-006-007) ─────────────────────────────
+
+    /**
+     * Return field metadata for this entity, consumable by TableView/FieldForm.
+     *
+     * @return array Entity metadata (FR-006-007 schema)
+     * @since 1.0.0
+     */
+    public static function getFieldMetadata(): array
+    {
+        return [
+            'entity'      => 'customer_type',
+            'table'       => '0_fa_crm_customer_types',
+            'label'       => 'Customer Type',
+            'labelPlural' => 'Customer Types',
+            'hookPrefix'  => 'CustomerType',
+            'pk'          => 'id',
+            'fields'      => [
+                'id' => [
+                    'label' => 'ID',
+                    'type'  => 'text',
+                    'showInForm' => false,
+                    'showInTable' => true,
+                ],
+                'name' => [
+                    'label' => 'Name',
+                    'type'  => 'text',
+                    'required' => true,
+                    'max' => 100,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-5',
+                ],
+                'description' => [
+                    'label' => 'Description',
+                    'type'  => 'textarea',
+                    'rows' => 2,
+                    'showInTable' => false,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-7',
+                ],
+                'inactive' => [
+                    'label' => 'Inactive',
+                    'type'  => 'checkbox',
+                    'default' => 0,
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-2',
+                ],
+                'sort_order' => [
+                    'label' => 'Sort Order',
+                    'type'  => 'number',
+                    'showInTable' => true,
+                    'showInForm' => true,
+                    'colClass' => 'col-md-2',
+                ],
+            ],
+            'fk_ddls'   => [],
+            'ddlHooks'  => [
+                'getCustomerTypes'           => 'hookGetCustomerTypes',
+                'getCustomerTypeDDL'         => 'hookGetCustomerTypeDDL',
+                'getCustomerTypeHtmlOptions' => 'hookGetCustomerTypeHtmlOptions',
+            ],
+            'tableSettings' => ['orderBy' => 'sort_order ASC, name ASC'],
+        ];
+    }
+
     // ─── Hook Response Methods ────────────────────────────────────
 
     public function hookGetCustomerTypes(array &$data, $opts = null): array

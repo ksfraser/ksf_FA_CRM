@@ -261,4 +261,31 @@ class RealmServiceTest extends TestCase
         $rendered = $this->service->getDdl(true, '');
         $this->assertStringNotContainsString('value=""', $rendered[0]);
     }
+
+    // ─── Field Metadata (FR-006-007) ─────────────────────────────
+
+    public function testGetFieldMetadataReturnsEntityIdentity(): void
+    {
+        $md = RealmService::getFieldMetadata();
+        $this->assertSame('realm', $md['entity']);
+        $this->assertSame('0_fa_crm_realms', $md['table']);
+        $this->assertSame('Realms', $md['labelPlural']);
+        $this->assertSame('id', $md['pk']);
+    }
+
+    public function testGetFieldMetadataIncludesRealmSpecificFields(): void
+    {
+        $md = RealmService::getFieldMetadata();
+        $fields = $md['fields'];
+        $this->assertArrayHasKey('requires_quote', $fields);
+        $this->assertArrayHasKey('requires_project', $fields);
+        $this->assertArrayHasKey('default_stage', $fields);
+        $this->assertArrayHasKey('stages_json', $fields);
+    }
+
+    public function testGetFieldMetadataExposesDdlHooks(): void
+    {
+        $md = RealmService::getFieldMetadata();
+        $this->assertSame('hookGetRealmDDL', $md['ddlHooks']['getRealmDDL']);
+    }
 }
