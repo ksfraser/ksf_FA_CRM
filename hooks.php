@@ -94,8 +94,54 @@ class hooks_ksf_FA_CRM extends hooks {
      */
     function activate_extension($company, $check_only=true) {
         $this->ensure_composer_dependencies();
-        $updates = array('install.sql' => array('fa_crm_customers'));
-        return $this->update_databases($company, $updates, $check_only);
+        $updates = array(
+            'install.sql'             => array('fa_crm_customers'),
+            'retag_contact_types.sql' => array('ksf_contact_types'),
+        );
+        $ok = $this->update_databases($company, $updates, $check_only);
+
+        if (!$check_only && $ok) {
+            $this->register_contact_types();
+        }
+
+        return $ok;
+    }
+
+    /**
+     * Register the contact types owned by this module (idempotent).
+     */
+    private function register_contact_types() {
+        $autoload = dirname(__FILE__) . '/vendor/autoload.php';
+        if (file_exists($autoload)) {
+            require_once $autoload;
+        }
+        if (!class_exists('\\ksfraser\\FrontAccounting\\Common\\ContactType\\ContactTypeRegistry')) {
+            return;
+        }
+
+        \ksfraser\FrontAccounting\Common\ContactType\ContactTypeRegistry::registerTypes(array(
+            new \ksfraser\FrontAccounting\Common\ContactType\ContactType(
+                'crm_contact', 'CRM Contact', $this->module_name,
+                'Customer or contact managed by the CRM module'
+            ),
+            new \ksfraser\FrontAccounting\Common\ContactType\ContactType(
+                'lead', 'CRM Lead', $this->module_name,
+                'Sales lead tracked by the CRM module'
+            ),
+            new \ksfraser\FrontAccounting\Common\ContactType\ContactType(
+                'opportunity', 'CRM Opportunity', $this->module_name,
+                'Sales opportunity tracked by the CRM module'
+            ),
+        ));
+    }
+
+    function deactivate_extension($company, $check_only=true) {
+        if (!$check_only
+            && class_exists('\\ksfraser\\FrontAccounting\\Common\\ContactType\\ContactTypeRegistry')) {
+            \ksfraser\FrontAccounting\Common\ContactType\ContactTypeRegistry::unregisterModule($this->module_name);
+        }
+
+        return true;
     }
 
     /**
