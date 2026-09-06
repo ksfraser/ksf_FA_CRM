@@ -25,7 +25,25 @@ function get_customer_list($salesman = null, $area = null, $show_inactive = fals
 
     $current_user = &$_SESSION["wa_current_user"];
     $user_id = $current_user->user;
-    $salesman_code = $current_user->salesman;
+
+    $allowed_salesmen = null;
+
+    $rbac_data = array('user_id' => $user_id);
+    $rbac_result = hook_invoke_all('ksf_FA_RBAC', 'getUserCustomerRestrictions', $rbac_data);
+
+    foreach ($rbac_result as $result) {
+        if (is_array($result) && !empty($result)) {
+            $allowed_salesmen = $result;
+            break;
+        }
+    }
+
+    if ($allowed_salesmen === null) {
+        $salesman_code = $current_user->salesman;
+        if (isset($salesman_code) && $salesman_code != '') {
+            $allowed_salesmen = array($salesman_code);
+        }
+    }
 
     $sql = "SELECT d.debtor_no, d.name, d.address, d.phone, d.email,
             d.fax, d.gst_no, d.tax_ref, d.credit_status, d.credit_limit,
@@ -55,8 +73,9 @@ function get_customer_list($salesman = null, $area = null, $show_inactive = fals
         $sql .= " AND c.area = " . db_escape($area);
     }
 
-    if (isset($salesman_code) && $salesman_code != '') {
-        $sql .= " AND c.salesman = " . db_escape($salesman_code);
+    if ($allowed_salesmen !== null && count($allowed_salesmen) > 0) {
+        $salesman_list = implode(',', array_map('db_escape', $allowed_salesmen));
+        $sql .= " AND c.salesman IN ($salesman_list)";
     }
 
     $sql .= " ORDER BY d.name, c.branch_name";

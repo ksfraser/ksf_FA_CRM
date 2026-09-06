@@ -20,6 +20,27 @@ include_once($path_to_root . "/sales/includes/sales_Db.inc");
 
 function get_open_balance($debtor_no, $to)
 {
+    global $db_connections;
+
+    $current_user = &$_SESSION["wa_current_user"];
+    $user_id = $current_user->user;
+
+    $allowed_customers = null;
+
+    $rbac_data = array('user_id' => $user_id);
+    $rbac_result = hook_invoke_all('ksf_FA_RBAC', 'getUserCustomerRestrictions', $rbac_data);
+
+    foreach ($rbac_result as $result) {
+        if (is_array($result) && !empty($result)) {
+            $allowed_customers = $result;
+            break;
+        }
+    }
+
+    if ($allowed_customers !== null && !in_array($debtor_no, $allowed_customers)) {
+        return null;
+    }
+
     $to = date2sql($to);
 
     $sql = "SELECT SUM(IF(t.type = " . ST_SALESINVOICE . " OR t.type = " . ST_BANKPAYMENT . ",

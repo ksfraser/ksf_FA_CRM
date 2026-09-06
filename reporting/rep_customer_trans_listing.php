@@ -28,6 +28,39 @@ define('ST_CUSTDELIVERY', 13);
 function get_customer_transactions($debtor_no, $from_date, $to_date,
     $show_orders, $show_deliveries, $show_invoices, $show_credits, $show_payments)
 {
+    global $db_connections;
+
+    $current_user = &$_SESSION["wa_current_user"];
+    $user_id = $current_user->user;
+
+    $allowed_customers = null;
+
+    $rbac_data = array('user_id' => $user_id);
+    $rbac_result = hook_invoke_all('ksf_FA_RBAC', 'getUserCustomerRestrictions', $rbac_data);
+
+    foreach ($rbac_result as $result) {
+        if (is_array($result) && !empty($result)) {
+            $allowed_customers = $result;
+            break;
+        }
+    }
+
+    if ($allowed_customers === null) {
+        $salesman_code = $current_user->salesman;
+        if (isset($salesman_code) && $salesman_code != '') {
+            $sql = "SELECT DISTINCT debtor_no FROM " . TB_PREF . "cust_branch WHERE salesman = " . db_escape($salesman_code);
+            $result = db_query($sql, "Could not get salesman customers");
+            $allowed_customers = array();
+            while ($row = db_fetch($result)) {
+                $allowed_customers[] = $row['debtor_no'];
+            }
+        }
+    }
+
+    if ($allowed_customers !== null && !in_array($debtor_no, $allowed_customers)) {
+        return null;
+    }
+
     $types = array();
     if ($show_orders) $types[] = ST_SALESORDER;
     if ($show_deliveries) $types[] = ST_CUSTDELIVERY;
