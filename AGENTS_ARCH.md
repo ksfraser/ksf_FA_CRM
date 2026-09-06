@@ -92,6 +92,28 @@ Each table gets a `{table}_db.inc` gateway exposing `write_{table}()` /
   PHP 8+ transitive deps breaks a PHP 7.x container) — pin
   `config.platform.php` to the container's PHP where needed.
 
+### ComposerDependencies — self-installing vendor on activation
+
+Each module bundles `ComposerDependencies.php` in its **root directory** (copied from
+`ksf_FA_Common/src/Utils/ComposerDependencies.php`). This solves the chicken-and-egg
+problem: vendor/ doesn't exist until composer runs, but we need to run composer to
+create vendor/.
+
+```php
+// hooks.php — top of file, BEFORE any other requires
+require_once __DIR__ . '/ComposerDependencies.php';
+\ksfraser\FrontAccounting\Common\Utils\ComposerDependencies::ensure(__DIR__);
+
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+```
+
+`ComposerDependencies::ensure($moduleDir)` checks if `vendor/autoload.php` exists. If
+not, it runs `composer install --no-interaction --prefer-dist` in `$moduleDir`. FA
+calls `install_extension()` before activation completes, so vendor/ is ready when
+other hook methods run.
+
 ## 8. FA module naming / security constants
 
 - Hooks class: `hooks_ksf_FA_<ModuleName>`.
@@ -136,6 +158,40 @@ output.
 - Cross-module services: `ksf_log()` (ksf_FA_Common) routes to `ksf_log` hook →
   writes `company/<n>/logs/<module>_<date>.log`.
 
+### Event-Driven Architecture
+
+**Every CRUD action that affects cross-module state MUST emit an event.** See
+`ProjectDcs/Event-Driven Architecture.md` for full event taxonomy, payload schemas,
+and workflow diagrams.
+
+**Core principle:** Modules communicate through events, not direct calls. A module
+emits without knowing listeners; a listener acts without knowing the emitter.
+
+**Event naming:** `{object}_{action}` in snake_case (e.g., `stock_reserved`,
+`suggested_po_created`, `po_created`).
+
+**Standard payload:**
+```php
+$data = [
+    'module'    => 'ksf_FA_StockReservations',
+    'event'     => 'stock_reserved',
+    'timestamp' => '2024-01-15 14:30:00',
+    // ... event-specific fields
+];
+```
+
+**Emitter rules:**
+- Emit via `hook_invoke_all('{event}', $data)` after state is committed
+- Include all standard fields (module, event, timestamp)
+- Include relevant IDs for listeners (so_order_no, po_number, etc.)
+- Emit even if no listeners (fire-and-forget)
+
+**Listener rules:**
+- Implement method named `{event_name}(array &$data)`
+- Check team type is enabled before acting (for Teams module)
+- Use `class_exists()` guard before using other modules' classes
+- Log errors, don't throw (hook methods must be fault-tolerant)
+
 ## 12. FA module packaging
 
 - `_init/config` file is **gzip-compressed** `Key: Value` lines (`Name:`, `Version:`,
@@ -147,6 +203,22 @@ output.
   release/build in a separate field; the FA-compat major is what FA checks.
 - `install.sql` schema: hardcoded `0_` prefix; do not use `@TB_PREF@`/`{TB_PREF}`;
   probe existing tables with the bare table name.
+- **Deactivation**: use `sql/uninstall.sql` (also hardcoded `0_` prefix), NOT manual
+  `db_query()`. In `deactivate_extension()`, read the file and call `run_db_import()`.
+  The SQL runner replaces `0_` with the actual company prefix automatically.
+
+  ```php
+  function deactivate_extension($company, $force = false)
+  {
+      $uninstallFile = __DIR__ . '/sql/uninstall.sql';
+      if (file_exists($uninstallFile)) {
+          $sql = file_get_contents($uninstallFile);
+          run_db_import($sql, $company);
+      }
+      remove_security_section(SS_ksf_FA_ModuleName);
+      return parent::deactivate_extension($company, $force);
+  }
+  ```
 - Cross-module/owned classes live in a Packagist package, not a module dir.
   A module must never gate class availability on another module's activation.
 

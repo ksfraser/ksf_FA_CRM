@@ -66,6 +66,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $security_areas['SA_CRM_PERSON_ACCOUNT_ROLES'] = array(SS_CRM | 17, _("Person Account Roles"));
         $security_areas['SA_CRM_ACCOUNT_RELATIONSHIPS'] = array(SS_CRM | 18, _("Account Relationships"));
         $security_areas['SA_CRM_CONTACT_RELATIONSHIPS'] = array(SS_CRM | 19, _("Contact Relationships"));
+        $security_areas['SA_CRM_REPORTS'] = array(SS_CRM | 20, _("CRM Reports"));
 
         return array($security_areas, $security_sections);
     }
