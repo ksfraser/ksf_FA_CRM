@@ -25,19 +25,33 @@ function get_open_balance($debtor_no, $to)
     $current_user = &$_SESSION["wa_current_user"];
     $user_id = $current_user->user;
 
-    $allowed_customers = null;
+    $can_view = false;
 
-    $rbac_data = array('user_id' => $user_id);
-    $rbac_result = hook_invoke_all('ksf_FA_RBAC', 'getUserCustomerRestrictions', $rbac_data);
+    $auth_data = array(
+        'user_id' => $user_id,
+        'action' => 'view',
+        'module' => 'customer',
+        'resource_type' => 'customer',
+        'resource_id' => $debtor_no
+    );
+    $auth_result = hook_invoke_first('ksf_FA_RBAC', 'authorize', $auth_data);
 
-    foreach ($rbac_result as $result) {
-        if (is_array($result) && !empty($result)) {
-            $allowed_customers = $result;
-            break;
+    if ($auth_result === true || $auth_result === null) {
+        $can_view = true;
+    }
+
+    if (!$can_view) {
+        $salesman_code = $current_user->salesman;
+        if (isset($salesman_code) && $salesman_code != '') {
+            $sql = "SELECT 1 FROM " . TB_PREF . "cust_branch
+                    WHERE debtor_no = " . db_escape($debtor_no) . "
+                    AND salesman = " . db_escape($salesman_code) . " LIMIT 1";
+            $result = db_query($sql, "Could not check customer access");
+            $can_view = db_num_rows($result) > 0;
         }
     }
 
-    if ($allowed_customers !== null && !in_array($debtor_no, $allowed_customers)) {
+    if (!$can_view) {
         return null;
     }
 
