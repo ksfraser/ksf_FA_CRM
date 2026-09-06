@@ -19,12 +19,6 @@ include_once($path_to_root . "/sales/includes/db/customers_db.inc");
 include_once($path_to_root . "/sales/includes/sales_Db.inc");
 include_once($path_to_root . "/gl/includes/gl_db.inc");
 
-define('ST_SALESORDER', 30);
-define('ST_SALESINVOICE', 10);
-define('ST_CUSTCREDIT', 11);
-define('ST_CUSTPAYMENT', 12);
-define('ST_CUSTDELIVERY', 13);
-
 function get_customer_transactions($debtor_no, $from_date, $to_date,
     $show_orders, $show_deliveries, $show_invoices, $show_credits, $show_payments)
 {
