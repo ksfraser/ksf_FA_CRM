@@ -7,6 +7,7 @@ namespace Ksfraser\FA\CRM\App;
 use ksfraser\FrontAccounting\Common\App\AbstractAppShell;
 use ksfraser\FrontAccounting\Common\App\TabRegistration;
 use Ksfraser\FA\CRM\Controller\CustomerTypesTabController;
+use Ksfraser\FA\CRM\Controller\TerritoriesTabController;
 
 /**
  * CrmAppShell — CRM application shell SRP.
@@ -42,8 +43,9 @@ class CrmAppShell extends AbstractAppShell
     }
 
     /**
-     * Core CRM tabs, each mapped to its page script + security area.
-     * Customer Types is controller-backed (SRP pilot).
+     * Core CRM tabs. Controller-backed tabs use the app-shell SRP; anything
+     * still listed as a page must be a shell-compatible fragment (inherits
+     * $path_to_root, no own page()/end_page()).
      *
      * @return void
      *
@@ -54,24 +56,26 @@ class CrmAppShell extends AbstractAppShell
         $root = dirname(__DIR__, 5);
 
         $tabs = [
-            ['key' => 'dashboard',      'label' => '&Dashboard',      'page' => 'dashboard.php',              'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'contacts',       'label' => 'Contacts',        'page' => 'contact_relationships.php',  'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'customers',      'label' => 'Customers',       'page' => 'customer_types.php',         'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'leads',          'label' => 'Leads',           'page' => 'leads.php',                  'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'opportunities',  'label' => 'Opportunities',   'page' => 'opportunities.php',          'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'communications', 'label' => 'Communications',  'page' => 'communications.php',         'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'meetings',       'label' => 'Meetings',        'page' => 'meetings.php',               'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'quotes',         'label' => 'Quotes',          'page' => 'quotes.php',                 'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'customer_types', 'label' => 'Customer Types',  'page' => null,                         'security' => 'SA_CUSTOMER_TYPE'],
-            ['key' => 'territories',    'label' => 'Territories',     'page' => 'territories.php',            'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'tags',           'label' => 'Tags',            'page' => 'crm_tags.php',               'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'email_accounts', 'label' => 'Email Accounts',  'page' => 'email_accounts.php',         'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'dashboard',      'label' => '&Dashboard',      'page' => 'dashboard.php',  'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'contacts',       'label' => 'Contacts',        'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'customers',      'label' => 'Customers',       'controller' => CustomerTypesTabController::class, 'security' => 'SA_CUSTOMER_TYPE'],
+            ['key' => 'leads',          'label' => 'Leads',           'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'opportunities',  'label' => 'Opportunities',   'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'communications', 'label' => 'Communications',  'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'meetings',       'label' => 'Meetings',        'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'quotes',         'label' => 'Quotes',          'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'customer_types', 'label' => 'Customer Types',  'controller' => CustomerTypesTabController::class, 'security' => 'SA_CUSTOMER_TYPE'],
+            ['key' => 'territories',    'label' => 'Territories',     'controller' => TerritoriesTabController::class,     'security' => 'SA_TERRITORY'],
+            ['key' => 'tags',           'label' => 'Tags',            'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'email_accounts', 'label' => 'Email Accounts',  'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
         ];
 
         $priority = 0;
         foreach ($tabs as $tab) {
-            $controllerClass = ($tab['key'] === 'customer_types') ? CustomerTypesTabController::class : null;
-            $pageFile = ($tab['page'] !== null) ? ($root . '/pages/' . $tab['page']) : null;
+            $controllerClass = $tab['controller'] ?? null;
+            $pageFile = isset($tab['page']) && $tab['page'] !== null
+                ? ($root . '/pages/' . $tab['page'])
+                : null;
             $this->registerTab(new TabRegistration(
                 $tab['key'],
                 $tab['label'],
