@@ -12,11 +12,9 @@ declare(strict_types=1);
  * @version 1.0.0
  */
 
-// Load ksf_FA_Common's ComposerDependencies utility.
-$composerDepsPath = dirname(__DIR__) . '/ksf_FA_Common/src/Utils/ComposerDependencies.php';
-if (file_exists($composerDepsPath)) {
-    require_once $composerDepsPath;
-    \ksfraser\FrontAccounting\Common\Utils\ComposerDependencies::ensure(__DIR__);
+// Composer autoloader + vendored ksfraser/ksf-fa-common prefixes.
+if (file_exists(__DIR__ . '/bootstrap.php')) {
+    require_once __DIR__ . '/bootstrap.php';
 }
 
 define('SS_CRM', 114 << 8);
