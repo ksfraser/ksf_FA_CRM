@@ -35,6 +35,14 @@ trait FaRepositoryTrait
         return $rows;
     }
 
+    protected function dbFetchRow($result): ?array
+    {
+        if ($result && db_num_rows($result)) {
+            return db_fetch_row($result);
+        }
+        return null;
+    }
+
     protected function dbInsertId(): int
     {
         return (int)db_insert_id();
@@ -48,5 +56,10 @@ trait FaRepositoryTrait
     protected function intVal($value): int
     {
         return (int)$value;
+    }
+
+    protected function numVal($value): string
+    {
+        return (string) number_format((float) $value, 2, '.', '');
     }
 }

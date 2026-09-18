@@ -385,3 +385,60 @@ INSERT IGNORE INTO `0_fa_crm_territories` (`name`, `description`, `region`, `sor
 ('East', 'Eastern region', 'East', 3),
 ('West', 'Western region', 'West', 4),
 ('Central', 'Central region', 'Central', 5);
+
+CREATE TABLE IF NOT EXISTS `0_fa_crm_email_accounts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `account_name` varchar(100) NOT NULL,
+  `email_address` varchar(100) NOT NULL,
+  `server_host` varchar(200) NOT NULL,
+  `server_port` int(11) NOT NULL DEFAULT 993,
+  `encryption` varchar(10) DEFAULT '',
+  `username` varchar(100) DEFAULT '',
+  `password` varchar(255) DEFAULT '',
+  `auto_import` tinyint(1) DEFAULT 0,
+  `import_frequency` int(11) DEFAULT 60,
+  `last_import` datetime DEFAULT NULL,
+  `inactive` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `0_fa_crm_meetings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `meeting_name` varchar(100) NOT NULL,
+  `meeting_type` varchar(30) DEFAULT 'meeting',
+  `description` text,
+  `start_date` datetime DEFAULT NULL,
+  `end_date` datetime DEFAULT NULL,
+  `duration_minutes` int(11) DEFAULT 60,
+  `location_type` varchar(10) DEFAULT 'physical',
+  `custom_location` varchar(200) DEFAULT '',
+  `phone_number` varchar(20) DEFAULT '',
+  `conference_url` varchar(500) DEFAULT '',
+  `debtor_no` varchar(20) DEFAULT '',
+  `opportunity_id` int(11) DEFAULT NULL,
+  `agenda` text,
+  `notes` text,
+  `status` varchar(20) DEFAULT 'planned',
+  `priority` varchar(10) DEFAULT 'normal',
+  `assigned_to` varchar(100) DEFAULT '',
+  `created_by` varchar(100) DEFAULT '',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `0_fa_crm_meeting_attendees` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `meeting_id` int(11) NOT NULL,
+  `attendee_type` varchar(20) DEFAULT 'contact',
+  `contact_id` int(11) DEFAULT NULL,
+  `employee_id` int(11) DEFAULT NULL,
+  `external_name` varchar(100) DEFAULT '',
+  `external_email` varchar(100) DEFAULT '',
+  `response_status` varchar(20) DEFAULT 'pending',
+  `notes` text,
+  PRIMARY KEY (`id`),
+  KEY `meeting_id` (`meeting_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

@@ -6,9 +6,14 @@ namespace Ksfraser\FA\CRM\App;
 
 use ksfraser\FrontAccounting\Common\App\AbstractAppShell;
 use ksfraser\FrontAccounting\Common\App\TabRegistration;
+use Ksfraser\FA\CRM\Controller\CommunicationsTabController;
+use Ksfraser\FA\CRM\Controller\ContactsTabController;
 use Ksfraser\FA\CRM\Controller\CustomerTypesTabController;
+use Ksfraser\FA\CRM\Controller\EmailAccountsTabController;
 use Ksfraser\FA\CRM\Controller\LeadsTabController;
+use Ksfraser\FA\CRM\Controller\MeetingsTabController;
 use Ksfraser\FA\CRM\Controller\OpportunitiesTabController;
+use Ksfraser\FA\CRM\Controller\QuotesTabController;
 use Ksfraser\FA\CRM\Controller\TagsTabController;
 use Ksfraser\FA\CRM\Controller\TerritoriesTabController;
 
@@ -60,17 +65,17 @@ class CrmAppShell extends AbstractAppShell
 
         $tabs = [
             ['key' => 'dashboard',      'label' => '&Dashboard',      'page' => 'dashboard.php',  'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'contacts',       'label' => 'Contacts',        'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'contacts',       'label' => 'Contacts',        'controller' => ContactsTabController::class,     'security' => 'SA_CRM_CONTACT_RELATIONSHIPS'],
             ['key' => 'customers',      'label' => 'Customers',       'controller' => CustomerTypesTabController::class, 'security' => 'SA_CUSTOMER_TYPE'],
-            ['key' => 'leads',          'label' => 'Leads',           'controller' => LeadsTabController::class,             'security' => 'SA_CRM_LEAD'],
-            ['key' => 'opportunities',  'label' => 'Opportunities',   'controller' => OpportunitiesTabController::class,     'security' => 'SA_CRM_OPPORTUNITY'],
-            ['key' => 'communications', 'label' => 'Communications',  'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'meetings',       'label' => 'Meetings',        'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'quotes',         'label' => 'Quotes',          'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
-            ['key' => 'customer_types', 'label' => 'Customer Types',  'controller' => CustomerTypesTabController::class,     'security' => 'SA_CUSTOMER_TYPE'],
-            ['key' => 'territories',    'label' => 'Territories',     'controller' => TerritoriesTabController::class,       'security' => 'SA_TERRITORY'],
-            ['key' => 'tags',           'label' => 'Tags',            'controller' => TagsTabController::class,              'security' => 'SA_CRM_TAGS'],
-            ['key' => 'email_accounts', 'label' => 'Email Accounts',  'page' => null,             'security' => 'SA_CRM_DASHBOARD'],
+            ['key' => 'leads',          'label' => 'Leads',           'controller' => LeadsTabController::class,          'security' => 'SA_CRM_LEAD'],
+            ['key' => 'opportunities',  'label' => 'Opportunities',   'controller' => OpportunitiesTabController::class,  'security' => 'SA_CRM_OPPORTUNITY'],
+            ['key' => 'communications', 'label' => 'Communications',  'controller' => CommunicationsTabController::class, 'security' => 'SA_CRM_COMMUNICATION'],
+            ['key' => 'meetings',       'label' => 'Meetings',        'controller' => MeetingsTabController::class,       'security' => 'SA_CRM_MEETING'],
+            ['key' => 'quotes',         'label' => 'Quotes',          'controller' => QuotesTabController::class,         'security' => 'SA_CRM_QUOTE'],
+            ['key' => 'customer_types', 'label' => 'Customer Types',  'controller' => CustomerTypesTabController::class,  'security' => 'SA_CUSTOMER_TYPE'],
+            ['key' => 'territories',    'label' => 'Territories',     'controller' => TerritoriesTabController::class,    'security' => 'SA_TERRITORY'],
+            ['key' => 'tags',           'label' => 'Tags',            'controller' => TagsTabController::class,           'security' => 'SA_CRM_TAGS'],
+            ['key' => 'email_accounts', 'label' => 'Email Accounts',  'controller' => EmailAccountsTabController::class,  'security' => 'SA_CRM_EMAIL_ACCOUNT'],
         ];
 
         $priority = 0;
