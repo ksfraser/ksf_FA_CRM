@@ -106,7 +106,7 @@ class ContactsTabController extends AbstractTabController
             return;
         }
         $filter = $this->filterCustomerId();
-        if ($filter !== '') {
+        if ($filter !== '' && strpos($url, 'filter_debtor_no=') === false) {
             $sep = (strpos($url, '?') !== false) ? '&' : '?';
             $url .= $sep . 'filter_debtor_no=' . rawurlencode($filter);
         }
