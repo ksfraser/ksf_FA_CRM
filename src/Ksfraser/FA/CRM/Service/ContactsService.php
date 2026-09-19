@@ -26,9 +26,14 @@ class ContactsService
         $this->repo = $repo ?? new ContactsRepository();
     }
 
-    public function listAll(): array
+    public function listAll(?string $debtorNo = null): array
     {
-        return $this->repo->findAll();
+        return $this->repo->findAll($debtorNo);
+    }
+
+    public function countAll(?string $debtorNo = null): int
+    {
+        return $this->repo->countAll($debtorNo);
     }
 
     public function getById(int $id): ?array

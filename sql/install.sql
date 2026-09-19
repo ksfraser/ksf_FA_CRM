@@ -442,3 +442,24 @@ CREATE TABLE IF NOT EXISTS `0_fa_crm_meeting_attendees` (
   PRIMARY KEY (`id`),
   KEY `meeting_id` (`meeting_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `0_fa_crm_option_lists` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `list_key` varchar(40) NOT NULL,
+  `option_value` varchar(40) NOT NULL,
+  `option_label` varchar(80) NOT NULL,
+  `probability` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `inactive` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_list_value` (`list_key`,`option_value`),
+  KEY `idx_list` (`list_key`,`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO `0_fa_crm_option_lists` (`list_key`, `option_value`, `option_label`, `probability`, `sort_order`) VALUES
+('opportunity_stage', 'prospecting',  'Prospecting',  10.00, 10),
+('opportunity_stage', 'qualification', 'Qualification', 25.00, 20),
+('opportunity_stage', 'proposal',     'Proposal',     40.00, 30),
+('opportunity_stage', 'negotiation',  'Negotiation',  75.00, 40),
+('opportunity_stage', 'closed_won',   'Closed Won',  100.00, 50),
+('opportunity_stage', 'closed_lost',  'Closed Lost',   0.00, 60);

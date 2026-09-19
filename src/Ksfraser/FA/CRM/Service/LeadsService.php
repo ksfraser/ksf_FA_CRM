@@ -76,10 +76,6 @@ class LeadsService
                     'label' => 'ID', 'type' => 'text',
                     'showInForm' => false, 'showInTable' => true,
                 ],
-                'debtor_no' => [
-                    'label' => 'Customer', 'type' => 'select', 'required' => true,
-                    'showInTable' => true, 'showInForm' => true,
-                ],
                 'lead_source' => [
                     'label' => 'Source', 'type' => 'text', 'max' => 50,
                     'showInTable' => true, 'showInForm' => true,

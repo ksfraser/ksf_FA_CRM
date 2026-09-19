@@ -88,9 +88,14 @@ class OpportunitiesTabController extends AbstractTabController
     protected function fkOptions(): array
     {
         return [
-            'debtor_no' => $this->service->customerOptions(),
-            'status'    => OpportunitiesService::statusOptions(),
-            'stage'     => OpportunitiesService::stageOptions(),
+            'debtor_no'        => $this->service->customerOptions(),
+            'status'           => OpportunitiesService::statusOptions(),
+            'sales_person'     => $this->service->salesmanOptions(),
+            'assigned_to'      => $this->service->userOptions(),
+            'source'           => $this->service->optionListOptions('opportunity_source'),
+            'opportunity_type' => $this->service->optionListOptions('opportunity_type'),
+            'realm'            => $this->service->optionListOptions('opportunity_realm'),
+            'stage'            => $this->service->optionListOptions('opportunity_stage'),
         ];
     }
 }

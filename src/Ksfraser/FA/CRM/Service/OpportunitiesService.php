@@ -36,16 +36,6 @@ class OpportunitiesService
         return $this->repo->findById($id);
     }
 
-    public function create(array $data): int
-    {
-        return $this->repo->save($data);
-    }
-
-    public function update(int $id, array $data): void
-    {
-        $this->repo->update($id, $data);
-    }
-
     public function delete(int $id): void
     {
         $this->repo->delete($id);
@@ -54,6 +44,76 @@ class OpportunitiesService
     public function customerOptions(): array
     {
         return $this->repo->customerOptions();
+    }
+
+    public function salesmanOptions(): array
+    {
+        return $this->repo->salesmanOptions();
+    }
+
+    public function userOptions(): array
+    {
+        return $this->repo->userOptions();
+    }
+
+    public function optionListOptions(string $listKey): array
+    {
+        return $this->repo->optionListOptions($listKey);
+    }
+
+    /**
+     * Probability configured for a stage value (null when the stage has none).
+     *
+     * @param string $value Stage value
+     * @return float|null
+     */
+    public function stageProbability(string $value): ?float
+    {
+        return $this->repo->stageProbability($value);
+    }
+
+    /**
+     * Create an opportunity, defaulting probability from the sales stage when
+     * the caller did not supply one (SuiteCRM-style stage-to-probability link).
+     *
+     * @param array<string, mixed> $data
+     * @return int
+     */
+    public function create(array $data): int
+    {
+        return $this->repo->save($this->resolveProbability($data));
+    }
+
+    /**
+     * Update an opportunity, deriving probability from the stage when the
+     * caller did not supply one explicitly.
+     *
+     * @param int                  $id
+     * @param array<string, mixed> $data
+     * @return void
+     */
+    public function update(int $id, array $data): void
+    {
+        $this->repo->update($id, $this->resolveProbability($data));
+    }
+
+    /**
+     * Fill probability from the chosen stage when absent/blank.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function resolveProbability(array $data): array
+    {
+        $provided = $data['probability'] ?? null;
+        $missing  = $provided === null || $provided === '';
+        if ($missing) {
+            $stageProbability = $this->stageProbability((string) ($data['stage'] ?? ''));
+            if ($stageProbability !== null) {
+                $data['probability'] = $stageProbability;
+            }
+        }
+        return $data;
     }
 
     /**
@@ -90,7 +150,7 @@ class OpportunitiesService
                     'showInTable' => true, 'showInForm' => false,
                 ],
                 'sales_person' => [
-                    'label' => 'Sales Person', 'type' => 'text', 'max' => 100,
+                    'label' => 'Sales Person', 'type' => 'select',
                     'showInTable' => true, 'showInForm' => true,
                 ],
                 'status' => [
@@ -107,26 +167,26 @@ class OpportunitiesService
                 ],
                 'probability' => [
                     'label' => 'Probability %', 'type' => 'number',
-                    'showInTable' => false, 'showInForm' => true,
+                    'showInTable' => true, 'showInForm' => true,
                 ],
                 'expected_close_date' => [
                     'label' => 'Expected Close', 'type' => 'date',
                     'showInTable' => true, 'showInForm' => true,
                 ],
                 'source' => [
-                    'label' => 'Source', 'type' => 'text', 'max' => 50,
+                    'label' => 'Source', 'type' => 'select',
                     'showInTable' => false, 'showInForm' => true,
                 ],
                 'opportunity_type' => [
-                    'label' => 'Type', 'type' => 'text', 'max' => 50,
+                    'label' => 'Type', 'type' => 'select',
                     'showInTable' => false, 'showInForm' => true,
                 ],
                 'realm' => [
-                    'label' => 'Realm', 'type' => 'text', 'max' => 50,
+                    'label' => 'Realm', 'type' => 'select',
                     'showInTable' => false, 'showInForm' => true,
                 ],
                 'assigned_to' => [
-                    'label' => 'Assigned To', 'type' => 'text', 'max' => 100,
+                    'label' => 'Assigned To', 'type' => 'select',
                     'showInTable' => true, 'showInForm' => true,
                 ],
                 'notes' => [

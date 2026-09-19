@@ -24,12 +24,26 @@ class ContactsRepository
 
     private string $table = 'fa_crm_contacts';
 
-    public function findAll(): array
+    public function findAll(?string $debtorNo = null): array
     {
+        $where = $debtorNo !== null && $debtorNo !== ''
+            ? " WHERE c.debtor_no = " . $this->escape($debtorNo)
+            : '';
         $sql = "SELECT c.*, d.name AS customer_name FROM " . TB_PREF . $this->table
             . " c LEFT JOIN " . TB_PREF . "debtors_master d ON c.debtor_no = d.debtor_no"
+            . $where
             . " ORDER BY c.last_name ASC, c.first_name ASC, c.id DESC";
         return $this->dbFetchAll($this->dbQuery($sql));
+    }
+
+    public function countAll(?string $debtorNo = null): int
+    {
+        $where = $debtorNo !== null && $debtorNo !== ''
+            ? " WHERE debtor_no = " . $this->escape($debtorNo)
+            : '';
+        $sql = "SELECT COUNT(*) AS cnt FROM " . TB_PREF . $this->table . $where;
+        $row = $this->dbFetchAssoc($this->dbQuery($sql));
+        return (int) ($row['cnt'] ?? 0);
     }
 
     public function findById(int $id): ?array

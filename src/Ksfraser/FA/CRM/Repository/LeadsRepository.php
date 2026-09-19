@@ -41,11 +41,10 @@ class LeadsRepository
     public function save(array $data): int
     {
         $sql = "INSERT INTO " . TB_PREF . $this->table . " (
-                debtor_no, lead_source, lead_status, rating, annual_revenue,
+                lead_source, lead_status, rating, annual_revenue,
                 employee_count, industry, website, phone, email, address,
                 assigned_to, campaign_id, notes)
             VALUES ("
-            . $this->escape($data['debtor_no']) . ", "
             . $this->escape($data['lead_source'] ?? '') . ", "
             . $this->escape($data['lead_status'] ?? 'new') . ", "
             . $this->escape($data['rating'] ?? '') . ", "
@@ -66,7 +65,7 @@ class LeadsRepository
     public function update(int $id, array $data): void
     {
         $sets = [];
-        foreach (['debtor_no', 'lead_source', 'lead_status', 'rating', 'annual_revenue',
+        foreach (['lead_source', 'lead_status', 'rating', 'annual_revenue',
                   'employee_count', 'industry', 'website', 'phone', 'email', 'address',
                   'assigned_to', 'notes'] as $col) {
             if (array_key_exists($col, $data)) {

@@ -117,4 +117,60 @@ class OpportunitiesRepository
         }
         return $out;
     }
+
+    /** @return array<string,string> salesman_code => salesman_name (FA sales people). */
+    public function salesmanOptions(): array
+    {
+        $sql = "SELECT salesman_code, salesman_name FROM " . TB_PREF . "salesman"
+            . " WHERE !inactive ORDER BY salesman_name";
+        $rows = $this->dbFetchAll($this->dbQuery($sql));
+        $out = [];
+        foreach ($rows as $row) {
+            $out[$row['salesman_code']] = $row['salesman_name'];
+        }
+        return $out;
+    }
+
+    /** @return array<string,string> user_id => real_name (FA users as assignees). */
+    public function userOptions(): array
+    {
+        $sql = "SELECT user_id, real_name FROM " . TB_PREF . "users"
+            . " WHERE !inactive ORDER BY real_name";
+        $rows = $this->dbFetchAll($this->dbQuery($sql));
+        $out = [];
+        foreach ($rows as $row) {
+            $out[$row['user_id']] = $row['real_name'] !== '' ? $row['real_name'] : $row['user_id'];
+        }
+        return $out;
+    }
+
+    /** @return array<string,string> option_value => option_label for a CRM option list. */
+    public function optionListOptions(string $listKey): array
+    {
+        $sql = "SELECT option_value, option_label FROM " . TB_PREF . "fa_crm_option_lists"
+            . " WHERE list_key = " . $this->escape($listKey)
+            . " AND inactive = 0 ORDER BY sort_order ASC, option_label ASC";
+        $rows = $this->dbFetchAll($this->dbQuery($sql));
+        $out = [];
+        foreach ($rows as $row) {
+            $out[$row['option_value']] = $row['option_label'];
+        }
+        return $out;
+    }
+
+    /** @return float|null Probability configured for a stage value ('' if none). */
+    public function stageProbability(string $value): ?float
+    {
+        if ($value === '') {
+            return null;
+        }
+        $sql = "SELECT probability FROM " . TB_PREF . "fa_crm_option_lists"
+            . " WHERE list_key = 'opportunity_stage'"
+            . " AND option_value = " . $this->escape($value) . " LIMIT 1";
+        $row = $this->dbFetchAssoc($this->dbQuery($sql));
+        if ($row === null || $row['probability'] === '' || $row['probability'] === null) {
+            return null;
+        }
+        return (float) $row['probability'];
+    }
 }
