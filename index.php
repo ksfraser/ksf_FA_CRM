@@ -32,6 +32,11 @@ $page_security = $appShell->getSecurity($view, 'SA_CRM_DASHBOARD');
 include_once($path_to_root . "/includes/session.inc");
 add_access_extensions();
 
+// FA convention: pages include ui.inc themselves (main.inc only loads
+// ui_controls). Required for the FA-native UI-lists helpers (e.g. the
+// customer_list_row filter combo on the Contacts tab).
+include_once($path_to_root . "/includes/ui.inc");
+
 // Fire the register-with-me hook: other modules may add their tabs now.
 $appShell->boot();
 
