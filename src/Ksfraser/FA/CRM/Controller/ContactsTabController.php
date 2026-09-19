@@ -81,11 +81,11 @@ class ContactsTabController extends AbstractTabController
      */
     protected function renderSummaryTable(): void
     {
-        if (function_exists('select_from_customers_list')) {
+        if (function_exists('customer_list_row')) {
             $selected = $this->filterCustomerId();
             start_table(TABLESTYLE2, "width='95%'");
-            select_from_customers_list_row(_('Customer:'), 'filter_debtor_no',
-                $selected !== '' ? $selected : -1, true);
+            customer_list_row(_('Customer:'), 'filter_debtor_no',
+                $selected !== '' ? $selected : null, true, true);
             end_table(0);
         }
         parent::renderSummaryTable();
