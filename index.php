@@ -49,6 +49,9 @@ page(_("CRM"), false, false, '', $js);
 
 echo $appShell->renderMenu($view);
 
+// SRP dispatch: every tab is an AbstractTabController SRP (inherits the
+// FA-round-trip fix: `'ajax' => false` guarantees the Save spinner → native
+// POST → full-page PRG; no ajaxsubmit warning-triangle round-trip).
 $appShell->dispatch($view);
 
 end_page();

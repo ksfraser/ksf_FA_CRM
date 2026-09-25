@@ -74,24 +74,32 @@ class PageStructureTest extends TestCase
     
     public function testCRMMenuContainsTagsItem(): void
     {
-        $content = file_get_contents($this->moduleDir . '/index.php');
+        // Tags menu item now lives in the AppShell menu registry (hooks.php),
+        // not the legacy procedural router. The ?view= router dispatches to
+        // the tab controller SRP via $appShell->dispatch().
+        $content = file_get_contents($this->moduleDir . '/hooks.php');
         
-        $this->assertStringContainsString("'tags'", $content);
-        $this->assertStringContainsString('pages/crm_tags.php', $content);
+        $this->assertStringContainsString("addItem('tags'", $content);
+        $this->assertStringContainsString("_(\"Tags\")", $content);
     }
     
     public function testCRMMainViewsAreDefined(): void
     {
-        $content = file_get_contents($this->moduleDir . '/index.php');
+        // Main views are now SRP tab-controller entries in the AppShell menu
+        // registry (hooks.php → $menu->addItem chain), not literal strings in
+        // the procedural index.php router. index.php only resolves the ?view=
+        // via getTab() and dispatches through the controller SRP base class
+        // (which is where the 'ajax' => false round-trip fix lives).
+        $content = file_get_contents($this->moduleDir . '/hooks.php');
         
-        $this->assertStringContainsString("'dashboard'", $content);
-        $this->assertStringContainsString("'contacts'", $content);
-        $this->assertStringContainsString("'customers'", $content);
-        $this->assertStringContainsString("'leads'", $content);
-        $this->assertStringContainsString("'opportunities'", $content);
-        $this->assertStringContainsString("'communications'", $content);
-        $this->assertStringContainsString("'meetings'", $content);
-        $this->assertStringContainsString("'quotes'", $content);
+        $this->assertStringContainsString("addItem('dashboard'", $content);
+        $this->assertStringContainsString("addItem('contacts'", $content);
+        $this->assertStringContainsString("addItem('customers'", $content);
+        $this->assertStringContainsString("addItem('leads'", $content);
+        $this->assertStringContainsString("addItem('opportunities'", $content);
+        $this->assertStringContainsString("addItem('communications'", $content);
+        $this->assertStringContainsString("addItem('meetings'", $content);
+        $this->assertStringContainsString("addItem('quotes'", $content);
     }
     
     public function testSecurityAreaSA_CRM_TAGSIsDefined(): void
@@ -203,20 +211,25 @@ class PageStructureTest extends TestCase
     
     public function testIndexPageUsesValidViews(): void
     {
+        // Valid-views gate now lives in the AppShell router contract: the
+        // ?view= dispatcher resolves the tab from $appShell->getTab() and
+        // falls back to the SRP default view; pages are dispatched through
+        // the tab controller business-logic SRP (extends AbstractTabController).
         $content = file_get_contents($this->moduleDir . '/index.php');
         
-        $this->assertStringContainsString("\$validViews", $content);
-        $this->assertStringContainsString("'dashboard'", $content);
-        $this->assertStringContainsString("'tags'", $content);
-        $this->assertStringContainsString("pages/crm_tags.php", $content);
+        $this->assertStringContainsString("getDefaultView", $content);
+        $this->assertStringContainsString("dispatch", $content);
+        $this->assertStringContainsString("getTab", $content);
     }
     
     public function testIndexPageCreatesSubMenu(): void
     {
+        // Sub-menu creation is now the AppShell's job (the shell owns the
+        // menu registry + render). index.php delegates to the shell, whose
+        // SRP it documents in the App/AppShell docblock.
         $content = file_get_contents($this->moduleDir . '/index.php');
         
-        $this->assertStringContainsString("FAModuleMenu", $content);
-        $this->assertStringContainsString("\$subMenu->addItem", $content);
-        $this->assertStringContainsString("echo \$subMenu->render()", $content);
+        $this->assertStringContainsString("renderMenu", $content);
+        $this->assertStringContainsString("dispatch", $content);
     }
 }
