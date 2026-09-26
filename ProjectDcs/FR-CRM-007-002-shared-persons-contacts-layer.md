@@ -49,10 +49,17 @@ Reusable native functions (`crm_contacts_db.inc`):
 Reusable native UI: `class contacts extends simple_crud`,
 `__construct($name, $id, $class, $subclass=null)` — already instantiated natively as
 `new contacts('contacts', $branch_id, 'cust_branch')` (`customer_branches.php:321`).
+It is hard-wired to native `simple_crud` POST conventions, so the **data functions**
+are the reusable part; the UI class is a reference for field order + validation.
 
 **This native model already is the shared person/contact layer** the product wants:
 a person (individual) with typed xref links to any number of customer / supplier /
 user entities. The CRM should adopt it, not duplicate it.
+
+> **Full reference:** `NATIVE-FA-CONTACTS-REFERENCE.md` documents the exact column
+> sets, the complete native function signatures, the `ksfraser/fa-classes`
+> DTO/DAO classes, the `ksf-modules-dao` adapter, and six verified hazards
+> (H1–H6). Read it before implementing §3.1.
 
 ---
 
@@ -60,10 +67,27 @@ user entities. The CRM should adopt it, not duplicate it.
 
 ### 3.1 The CRM is a *client* of the native person/contact layer
 
-- CRM Contacts tab **reads/writes native** `crm_persons` + `crm_contacts` via the
-  functions above. The flat `0_fa_crm_contacts` is retired (see §4 migration).
-- Reuse the native `contacts` UI SRP for list/entry, scoped per entity+type, so
-  CRM, HRM and Users all present the same shared contact widget.
+- CRM Contacts tab **reads/writes native** `crm_persons` + `crm_contacts`. The flat
+  `0_fa_crm_contacts` is retired (see §4 migration).
+- **Data access goes through the `ksfraser/fa-classes` DTO/DAO layer, not raw SQL.**
+  That package already ships `CrmPerson`/`CrmContact`/`CrmCategory` DTOs and
+  `CrmPersonRepository`/`CrmContactRepository`/`CrmCategoryRepository`, plus
+  `CustomerBranchRepository`/`DebtorMasterRepository`, on top of
+  `Ksfraser\ModulesDAO\Db\FrontAccountingDbAdapter` (which delegates to native
+  `db_*`, satisfying the "native db_* at runtime" rule).
+- The new `PersonsRepository` is a thin **SRP translator** that composes those
+  repositories, adds the person-profile side-table (§3.2), and issues **no SQL of
+  its own** against `crm_*`. Full layering diagram: `NATIVE-FA-CONTACTS-REFERENCE.md` §5.
+- Constructor-injects the `DbAdapterInterface`, so the module's PHPUnit suite stays
+  database-free (inject a fake adapter).
+- **Writes:** the `fa-classes` CRM repositories are read-only, so use
+  `RepositoryTrait::insert()/update()/deleteWhere()` for single-table writes and the
+  native functions only where their transaction + category-link semantics are needed
+  (`add_crm_person`/`update_crm_person`, `update_person_contacts`), guarded by
+  `function_exists()` and injected as callables for testability.
+- Do **not** reference `Ksfraser\ModulesDAO\Factory\DatabaseAdapterFactory` — it uses
+  a PHP 8.0 `match` expression and is a **parse error on FA's 7.4** (hazard H4).
+  Use `new FrontAccountingDbAdapter(TB_PREF)`.
 - Follow **FA convention** (#15): the data form belongs to the *selected customer
   branch*; remove the redundant 2nd customer selector; disable the form when the
   customer filter is "ALL"; offer a **branch selector** (checkbox across the

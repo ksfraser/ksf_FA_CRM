@@ -5,6 +5,7 @@
     "require": {
         "php": ">=7.4",
         "ksfraser/ksf-fa-common": "^1.0",
+        "ksfraser/fa-classes": "*",
         "ksfraser/exceptions": "^1.2",
         "ksfraser/traits": "^1.2",
         "ksfraser/rbac": "*",
