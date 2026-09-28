@@ -232,7 +232,8 @@ CREATE TABLE IF NOT EXISTS `0_fa_crm_customer_types` (
     `description` VARCHAR(255) DEFAULT NULL,
     `inactive` TINYINT(1) DEFAULT 0,
     `sort_order` INT(11) DEFAULT 0,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Territories
@@ -243,7 +244,8 @@ CREATE TABLE IF NOT EXISTS `0_fa_crm_territories` (
     `region` VARCHAR(50) DEFAULT NULL,
     `inactive` TINYINT(1) DEFAULT 0,
     `sort_order` INT(11) DEFAULT 0,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CRM Activity Log
