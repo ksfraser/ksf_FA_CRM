@@ -23,11 +23,11 @@ class EmailImportService
      */
     public function connect()
     {
-        $host = $this->account_data['imap_host'];
-        $port = $this->account_data['imap_port'];
-        $encryption = $this->account_data['imap_encryption'];
-        $username = $this->account_data['imap_username'];
-        $password = $this->account_data['imap_password'];
+        $host = $this->account_data['server_host'];
+        $port = $this->account_data['server_port'];
+        $encryption = $this->account_data['encryption'];
+        $username = $this->account_data['username'];
+        $password = $this->account_data['password'];
 
         $mailbox = '{' . $host . ':' . $port . '/imap/' . $encryption . '}INBOX';
 
@@ -181,6 +181,15 @@ class EmailImportService
 
     public static function processEmailImport($account_id)
     {
+        // Mailbox accounts are owned by ksf_FA_EmailManager (#25); load its DAO
+        // so get_email_account() resolves to fa_em_accounts.
+        if (!function_exists('get_email_account')) {
+            $emDb = __DIR__ . '/../../ksf_FA_EmailManager/includes/em_db.inc';
+            if (file_exists($emDb)) {
+                include_once($emDb);
+            }
+        }
+
         $account = get_email_account($account_id);
         if (!$account) {
             throw new \Exception("Email account not found");

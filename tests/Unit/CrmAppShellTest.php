@@ -54,13 +54,25 @@ class CrmAppShellTest extends TestCase
 
     public function testAdminSubTabsAreTagged(): void
     {
-        foreach (['email_accounts', 'customer_types', 'territories',
+        foreach (['customer_types', 'territories',
                   'opportunity_sources', 'opportunity_types',
                   'opportunity_realms', 'opportunity_stages'] as $key) {
             $tab = $this->shell->getTab($key);
             $this->assertNotNull($tab, "{$key} must be registered");
             $this->assertSame('admin', $tab->getOption('group'), "{$key} must be admin-grouped");
         }
+    }
+
+    /**
+     * ksf_FA_EmailManager owns the mailbox-of-record; the CRM must not carry a
+     * second editor for it (ksfraser/ksf_FA_CRM#25).
+     */
+    public function testEmailAccountsIsNotACrmTab(): void
+    {
+        $this->assertNull(
+            $this->shell->getTab('email_accounts'),
+            'email accounts are owned by ksf_FA_EmailManager, not the CRM'
+        );
     }
 
     public function testAdminHubIsRegisteredAndGated(): void

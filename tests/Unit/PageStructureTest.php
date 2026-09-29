@@ -206,7 +206,11 @@ class PageStructureTest extends TestCase
         $this->assertStringContainsString("addItem('customer_types'", $content);
         $this->assertStringContainsString("addItem('territories'", $content);
         $this->assertStringContainsString("addItem('tags'", $content);
-        $this->assertStringContainsString("addItem('email_accounts'", $content);
+        $this->assertStringNotContainsString(
+            "addItem('email_accounts'",
+            $content,
+            'email accounts are owned by ksf_FA_EmailManager, not the CRM'
+        );
     }
     
     public function testIndexPageUsesValidViews(): void

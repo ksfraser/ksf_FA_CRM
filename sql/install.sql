@@ -388,24 +388,6 @@ INSERT IGNORE INTO `0_fa_crm_territories` (`name`, `description`, `region`, `sor
 ('West', 'Western region', 'West', 4),
 ('Central', 'Central region', 'Central', 5);
 
-CREATE TABLE IF NOT EXISTS `0_fa_crm_email_accounts` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `account_name` varchar(100) NOT NULL,
-  `email_address` varchar(100) NOT NULL,
-  `server_host` varchar(200) NOT NULL,
-  `server_port` int(11) NOT NULL DEFAULT 993,
-  `encryption` varchar(10) DEFAULT '',
-  `username` varchar(100) DEFAULT '',
-  `password` varchar(255) DEFAULT '',
-  `auto_import` tinyint(1) DEFAULT 0,
-  `import_frequency` int(11) DEFAULT 60,
-  `last_import` datetime DEFAULT NULL,
-  `inactive` tinyint(1) DEFAULT 0,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
 CREATE TABLE IF NOT EXISTS `0_fa_crm_meetings` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `meeting_name` varchar(100) NOT NULL,

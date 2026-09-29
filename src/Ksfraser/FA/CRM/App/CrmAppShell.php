@@ -12,7 +12,6 @@ use Ksfraser\FA\CRM\Controller\CommunicationsTabController;
 use Ksfraser\FA\CRM\Controller\ContactsTabController;
 use Ksfraser\FA\CRM\Controller\CustomerTypesTabController;
 use Ksfraser\FA\CRM\Controller\CustomersTabController;
-use Ksfraser\FA\CRM\Controller\EmailAccountsTabController;
 use Ksfraser\FA\CRM\Controller\LeadsTabController;
 use Ksfraser\FA\CRM\Controller\MeetingsTabController;
 use Ksfraser\FA\CRM\Controller\OptionListsTabController;
@@ -92,7 +91,6 @@ class CrmAppShell extends AbstractAppShell
             ['key' => 'meetings',       'label' => 'Meetings',        'controller' => MeetingsTabController::class,       'security' => 'SA_CRM_MEETING'],
             ['key' => 'quotes',         'label' => 'Quotes',          'controller' => QuotesTabController::class,         'security' => 'SA_CRM_QUOTE'],
             ['key' => 'tags',           'label' => 'Tags',            'controller' => TagsTabController::class,           'security' => 'SA_CRM_TAGS'],
-            ['key' => 'email_accounts', 'label' => 'Email Accounts',  'controller' => EmailAccountsTabController::class,  'security' => 'SA_CRM_EMAIL_ACCOUNT', 'options' => $admin],
             ['key' => 'customer_types', 'label' => 'Customer Types',  'controller' => CustomerTypesTabController::class, 'security' => 'SA_CUSTOMER_TYPE',     'options' => $admin],
             ['key' => 'territories',    'label' => 'Territories',     'controller' => TerritoriesTabController::class,    'security' => 'SA_TERRITORY',         'options' => $admin],
             ['key' => 'opportunity_sources', 'label' => 'Sources',    'controller' => OptionListsTabController::class,    'security' => 'SA_CRM_OPPORTUNITY',    'options' => $admin],

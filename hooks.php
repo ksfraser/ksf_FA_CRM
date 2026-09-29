@@ -100,10 +100,43 @@ class hooks_ksf_FA_CRM extends hooks {
         $ok = $this->update_databases($company, $updates, $check_only);
 
         if (!$check_only && $ok) {
+            $this->migrate_email_accounts();
             $this->register_contact_types();
         }
 
         return $ok;
+    }
+
+    /**
+     * Hand CRM email accounts over to ksf_FA_EmailManager (ksfraser/ksf_FA_CRM#25).
+     *
+     * EmailManager owns the mailbox-of-record (0_fa_em_accounts); the CRM's own
+     * 0_fa_crm_email_accounts is retired. The INSERT is guarded by NOT EXISTS on
+     * email_address, so it is idempotent and self-healing: re-running copies only
+     * accounts EmailManager has not already taken. No marker table is needed.
+     *
+     * The source table is intentionally NOT dropped here -- that stays a
+     * deliberate, separately-reviewed step once the handover is signed off.
+     */
+    private function migrate_email_accounts() {
+        foreach (array('fa_crm_email_accounts', 'fa_em_accounts') as $table) {
+            $res = db_query("SHOW TABLES LIKE " . db_escape(TB_PREF . $table), 'Cannot check table');
+            if (db_num_rows($res) == 0) {
+                return; // fresh install, or EmailManager not installed yet
+            }
+        }
+
+        db_query("INSERT INTO " . TB_PREF . "fa_em_accounts
+            (account_name, email_address, account_type, server_host, server_port, encryption,
+             username, password, sync_folder, is_active, auto_import, import_frequency,
+             last_import, last_sync)
+            SELECT c.account_name, c.email_address, 'imap', c.server_host, c.server_port,
+             c.encryption, c.username, c.password, 'INBOX', IF(c.inactive = 1, 0, 1),
+             c.auto_import, c.import_frequency, c.last_import, c.last_import
+            FROM " . TB_PREF . "fa_crm_email_accounts c
+            WHERE NOT EXISTS (
+                SELECT 1 FROM " . TB_PREF . "fa_em_accounts e WHERE e.email_address = c.email_address
+            )", 'Could not migrate CRM email accounts');
     }
 
     /**
@@ -278,8 +311,7 @@ class crm_app extends application {
              ->addItem('quotes',            _("Quotes"),            MENU_ENTRY)
              ->addItem('customer_types',    _("Customer Types"),    MENU_SETTINGS)
              ->addItem('territories',       _("Territories"),       MENU_SETTINGS)
-             ->addItem('tags',              _("Tags"),              MENU_SETTINGS)
-             ->addItem('email_accounts',    _("Email Accounts"),    MENU_SETTINGS);
+             ->addItem('tags',              _("Tags"),              MENU_SETTINGS);
 
         $menu->registerWithApp($this, 'SA_CRM_DASHBOARD');
 
