@@ -120,11 +120,12 @@ class hooks_ksf_FA_CRM extends hooks {
      */
     private function migrate_email_accounts() {
         foreach (array('fa_crm_email_accounts', 'fa_em_accounts') as $table) {
-            $res = db_query("SHOW TABLES LIKE " . db_escape(TB_PREF . $table), 'Cannot check table');
-            if (db_num_rows($res) == 0) {
+            if (!$this->crm_table_exists($table)) {
                 return; // fresh install, or EmailManager not installed yet
             }
         }
+
+        $this->add_email_scheduling_columns();
 
         db_query("INSERT INTO " . TB_PREF . "fa_em_accounts
             (account_name, email_address, account_type, server_host, server_port, encryption,
@@ -137,6 +138,42 @@ class hooks_ksf_FA_CRM extends hooks {
             WHERE NOT EXISTS (
                 SELECT 1 FROM " . TB_PREF . "fa_em_accounts e WHERE e.email_address = c.email_address
             )", 'Could not migrate CRM email accounts');
+    }
+
+    /**
+     * Installations provisioned by the retired PHP-side ensure_email_schema()
+     * predate the scheduling columns the CRM owned, so add whichever are absent
+     * before the copy below references them.
+     */
+    private function add_email_scheduling_columns() {
+        $present = array();
+        $res = db_query("SHOW COLUMNS FROM " . TB_PREF . "fa_em_accounts", 'Cannot inspect fa_em_accounts');
+        while ($col = db_fetch_assoc($res)) {
+            $present[$col['Field']] = true;
+        }
+
+        $wanted = array(
+            'auto_import'      => 'ADD COLUMN `auto_import` TINYINT(1) DEFAULT 0',
+            'import_frequency' => 'ADD COLUMN `import_frequency` INT(11) DEFAULT 60',
+            'last_import'      => 'ADD COLUMN `last_import` DATETIME DEFAULT NULL',
+        );
+
+        $add = array();
+        foreach ($wanted as $column => $clause) {
+            if (!isset($present[$column])) {
+                $add[] = $clause;
+            }
+        }
+
+        if ($add) {
+            db_query("ALTER TABLE " . TB_PREF . "fa_em_accounts " . implode(', ', $add),
+                'Could not add email scheduling columns');
+        }
+    }
+
+    private function crm_table_exists($table) {
+        $res = db_query("SHOW TABLES LIKE " . db_escape(TB_PREF . $table), 'Cannot check table');
+        return db_num_rows($res) > 0;
     }
 
     /**
