@@ -270,7 +270,18 @@ class hooks_ksf_FA_CRM extends hooks {
     }
 
     private function crm_table_exists($table) {
-        $res = db_query("SHOW TABLES LIKE " . db_escape(TB_PREF . $table), 'Cannot check table');
+        // Resolve the prefix to a concrete name before escaping. db_escape()
+        // runs html_entity_decode() then html_specials_encode(), which turns
+        // the TB_PREF placeholder '&TB_PREF&' into '&amp;TB_PREF&amp;'. That
+        // breaks the str_replace(TB_PREF, ...) substitution db_query() relies
+        // on, so the LIKE pattern would never match anything. (FA core's
+        // check_table() avoids this by concatenating the prefix into quoted
+        // SQL instead of escaping it.)
+        global $db_connections;
+        $comp = isset($_SESSION['wa_current_user']->cur_con)
+            ? $_SESSION['wa_current_user']->cur_con : 0;
+        $prefix = $db_connections[$comp]['tbpref'];
+        $res = db_query("SHOW TABLES LIKE " . db_escape($prefix . $table), 'Cannot check table');
         return db_num_rows($res) > 0;
     }
 
