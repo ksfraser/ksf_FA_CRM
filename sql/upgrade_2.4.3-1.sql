@@ -1,40 +1,23 @@
 -- ============================================================================
--- ksf_FA_CRM upgrade — table prefix correction
+-- ksf_FA_CRM upgrade — table prefix correction (COMPLETED)
 -- ============================================================================
--- Module tables were created as 0_fa_crm_* which does not match the documented
+-- Module tables were created as 0_fa_crm_* which did not match the documented
 -- convention in AGENTS.md ("SQL tables: 0_ksf_<tablename>"). The 0_fa_ prefix
 -- also read as "FrontAccounting's own table", which is what let
 -- 0_fa_crm_contacts be mistaken for a core table alongside the real
 -- crm_persons/crm_contacts pair (issue #14).
 --
--- The per-table install files now create 0_ksf_crm_*; these statements retire
--- the misnamed tables.
+-- The per-table install files now create 0_ksf_crm_*.
 --
--- TEMPORARY: these drops are destructive and are removed once every
--- installation has been cut over (see the header note in activate_extension).
+-- The temporary DROP statements that retired the misnamed tables have been
+-- removed. Every installation has been cut over, verified on the integration
+-- box: activating EmailManager then ksf_FA_CRM creates the 19 0_ksf_crm_*
+-- tables, hands the #25 mailbox row over to 0_ksf_em_accounts, and leaves no
+-- 0_fa_crm_* table behind. Re-activation is a no-op.
+--
+-- This file is intentionally empty of statements. It is retained so the
+-- 2.4.3-1 upgrade step remains a recorded, already-applied no-op rather than
+-- disappearing from the upgrade history. The #25 mailbox handover and the
+-- #14 contacts migration live in activate_extension(), which is idempotent and
+-- self-healing and does not depend on this file.
 -- ============================================================================
-
-DROP TABLE IF EXISTS `0_fa_crm_quote_items`;
-DROP TABLE IF EXISTS `0_fa_crm_quotes`;
-DROP TABLE IF EXISTS `0_fa_crm_option_lists`;
-DROP TABLE IF EXISTS `0_fa_crm_meeting_attendees`;
-DROP TABLE IF EXISTS `0_fa_crm_meetings`;
-DROP TABLE IF EXISTS `0_fa_crm_realms`;
-DROP TABLE IF EXISTS `0_fa_crm_contact_accounts`;
-DROP TABLE IF EXISTS `0_fa_crm_leads`;
-DROP TABLE IF EXISTS `0_fa_crm_activity_log`;
-DROP TABLE IF EXISTS `0_fa_crm_territories`;
-DROP TABLE IF EXISTS `0_fa_crm_customer_types`;
-DROP TABLE IF EXISTS `0_fa_crm_communications`;
-DROP TABLE IF EXISTS `0_fa_crm_opportunities`;
-DROP TABLE IF EXISTS `0_fa_crm_life_events`;
-DROP TABLE IF EXISTS `0_fa_crm_person_account_roles`;
-DROP TABLE IF EXISTS `0_fa_crm_account_relationships`;
-DROP TABLE IF EXISTS `0_fa_crm_contact_relationships`;
-DROP TABLE IF EXISTS `0_fa_crm_contacts`;
-DROP TABLE IF EXISTS `0_fa_crm_customers`;
-
--- Retired by #25 (EmailManager is the mailbox of record). Kept here so the
--- prefix sweep leaves no 0_fa_crm_* table behind; the handover copy into
--- 0_ksf_em_accounts runs in activate_extension() before this file.
-DROP TABLE IF EXISTS `0_fa_crm_email_accounts`;

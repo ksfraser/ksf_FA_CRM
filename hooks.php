@@ -125,7 +125,7 @@ class hooks_ksf_FA_CRM extends hooks {
 
         if (!$check_only && $ok) {
             // Order matters: the handover copies mailboxes out of the retired
-            // 0_ksf_crm_email_accounts before retire_misnamed_tables() drops it.
+            // 0_fa_crm_email_accounts before retire_misnamed_tables() retires it.
             $this->migrate_email_accounts();
             $this->register_contact_types();
             $this->retire_misnamed_tables($company);
@@ -135,11 +135,15 @@ class hooks_ksf_FA_CRM extends hooks {
     }
 
     /**
-     * Run sql/upgrade_2.4.3-1.sql, which drops the misnamed 0_ksf_crm_* tables.
+     * Run sql/upgrade_2.4.3-1.sql for installations that still hold misnamed
+     * 0_fa_crm_* tables.
      *
-     * Deliberately NOT part of the update_databases() map: that gates on
-     * "table missing => run this file", which is the inverse of what a cleanup
-     * script needs. Driven explicitly, and only when there is something to do.
+     * The upgrade file's DROP statements were removed once every installation
+     * had been cut over, so this is now a belt-and-braces no-op that only fires
+     * on a table that predates the cutover. It is deliberately NOT part of the
+     * update_databases() map, which gates on "table missing => run this file" —
+     * the inverse of what a cleanup script needs — and is driven explicitly,
+     * and only when there is something to do.
      *
      * @param int $company Company number
      * @return bool
@@ -194,7 +198,7 @@ class hooks_ksf_FA_CRM extends hooks {
      * email_address, so it is idempotent and self-healing: re-running copies only
      * accounts EmailManager has not already taken. No marker table is needed.
      *
-     * The source table is dropped by retire_misnamed_tables(), which runs after
+     * The source table is retired by retire_misnamed_tables(), which runs after
      * this, so the copy always sees it.
      */
     private function migrate_email_accounts() {
