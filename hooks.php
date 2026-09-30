@@ -87,6 +87,12 @@ class hooks_ksf_FA_CRM extends hooks {
     /**
      * Activate extension — runs SQL installation.
      *
+     * One sql/<tablename>.sql per table, each holding that table's definition
+     * plus any pre-seed data. update_databases() gates each file on its own
+     * table, so a partially-installed database gets the missing tables
+     * individually. (A single install.sql gated on one table is unsound: if
+     * that one table existed, the rest were never created.)
+     *
      * @param int $company Company number
      * @param bool $check_only Only check if activation possible
      * @return bool Success
@@ -94,40 +100,116 @@ class hooks_ksf_FA_CRM extends hooks {
     function activate_extension($company, $check_only=true) {
         $this->ensure_composer_dependencies();
         $updates = array(
-            'install.sql'             => array('fa_crm_customers'),
-            'retag_contact_types.sql' => array('ksf_contact_types'),
+            'ksf_crm_customers.sql'            => array('ksf_crm_customers'),
+            'ksf_crm_contacts.sql'             => array('ksf_crm_contacts'),
+            'ksf_crm_contact_relationships.sql' => array('ksf_crm_contact_relationships'),
+            'ksf_crm_account_relationships.sql' => array('ksf_crm_account_relationships'),
+            'ksf_crm_person_account_roles.sql'  => array('ksf_crm_person_account_roles'),
+            'ksf_crm_life_events.sql'          => array('ksf_crm_life_events'),
+            'ksf_crm_opportunities.sql'        => array('ksf_crm_opportunities'),
+            'ksf_crm_communications.sql'       => array('ksf_crm_communications'),
+            'ksf_crm_customer_types.sql'       => array('ksf_crm_customer_types'),
+            'ksf_crm_territories.sql'          => array('ksf_crm_territories'),
+            'ksf_crm_activity_log.sql'         => array('ksf_crm_activity_log'),
+            'ksf_crm_leads.sql'                => array('ksf_crm_leads'),
+            'ksf_crm_contact_accounts.sql'     => array('ksf_crm_contact_accounts'),
+            'ksf_crm_realms.sql'               => array('ksf_crm_realms'),
+            'ksf_crm_quotes.sql'               => array('ksf_crm_quotes'),
+            'ksf_crm_quote_items.sql'          => array('ksf_crm_quote_items'),
+            'ksf_crm_meetings.sql'             => array('ksf_crm_meetings'),
+            'ksf_crm_meeting_attendees.sql'    => array('ksf_crm_meeting_attendees'),
+            'ksf_crm_option_lists.sql'         => array('ksf_crm_option_lists'),
+            'retag_contact_types.sql'          => array('ksf_contact_types'),
         );
         $ok = $this->update_databases($company, $updates, $check_only);
 
         if (!$check_only && $ok) {
+            // Order matters: the handover copies mailboxes out of the retired
+            // 0_ksf_crm_email_accounts before retire_misnamed_tables() drops it.
             $this->migrate_email_accounts();
             $this->register_contact_types();
+            $this->retire_misnamed_tables($company);
         }
 
         return $ok;
     }
 
     /**
+     * Run sql/upgrade_2.4.3-1.sql, which drops the misnamed 0_ksf_crm_* tables.
+     *
+     * Deliberately NOT part of the update_databases() map: that gates on
+     * "table missing => run this file", which is the inverse of what a cleanup
+     * script needs. Driven explicitly, and only when there is something to do.
+     *
+     * @param int $company Company number
+     * @return bool
+     */
+    private function retire_misnamed_tables($company) {
+        global $db_connections;
+
+        $legacy = array('fa_crm_customers', 'fa_crm_contacts',
+            'fa_crm_contact_relationships', 'fa_crm_account_relationships',
+            'fa_crm_person_account_roles', 'fa_crm_life_events',
+            'fa_crm_opportunities', 'fa_crm_communications',
+            'fa_crm_customer_types', 'fa_crm_territories', 'fa_crm_activity_log',
+            'fa_crm_leads', 'fa_crm_contact_accounts', 'fa_crm_realms',
+            'fa_crm_quotes', 'fa_crm_quote_items', 'fa_crm_meetings',
+            'fa_crm_meeting_attendees', 'fa_crm_option_lists',
+            'fa_crm_email_accounts');
+
+        $present = false;
+        foreach ($legacy as $table) {
+            if ($this->crm_table_exists($table)) {
+                $present = true;
+                break;
+            }
+        }
+        if (!$present) {
+            return true; // already cut over; nothing to retire
+        }
+
+        $file = dirname(__FILE__) . '/sql/upgrade_2.4.3-1.sql';
+        if (!file_exists($file)) {
+            return true;
+        }
+
+        $conn = ($company == -1) ? $db_connections
+            : array($company => $db_connections[$company]);
+        foreach ($conn as $comp => $con) {
+            set_global_connection($comp);
+            if (!db_import($file, $con)) {
+                db_close();
+                return false;
+            }
+            db_close();
+        }
+        return true;
+    }
+
+    /**
      * Hand CRM email accounts over to ksf_FA_EmailManager (ksfraser/ksf_FA_CRM#25).
      *
-     * EmailManager owns the mailbox-of-record (0_fa_em_accounts); the CRM's own
+     * EmailManager owns the mailbox-of-record; the CRM's own
      * 0_fa_crm_email_accounts is retired. The INSERT is guarded by NOT EXISTS on
      * email_address, so it is idempotent and self-healing: re-running copies only
      * accounts EmailManager has not already taken. No marker table is needed.
      *
-     * The source table is intentionally NOT dropped here -- that stays a
-     * deliberate, separately-reviewed step once the handover is signed off.
+     * The source table is dropped by retire_misnamed_tables(), which runs after
+     * this, so the copy always sees it.
      */
     private function migrate_email_accounts() {
-        foreach (array('fa_crm_email_accounts', 'fa_em_accounts') as $table) {
-            if (!$this->crm_table_exists($table)) {
-                return; // fresh install, or EmailManager not installed yet
-            }
+        if (!$this->crm_table_exists('fa_crm_email_accounts')) {
+            return; // fresh install, or the handover has already happened
         }
 
-        $this->add_email_scheduling_columns();
+        $target = $this->email_manager_accounts_table();
+        if ($target === false) {
+            return; // EmailManager not installed yet; retried on its activation
+        }
 
-        db_query("INSERT INTO " . TB_PREF . "fa_em_accounts
+        $this->add_email_scheduling_columns($target);
+
+        db_query("INSERT INTO " . TB_PREF . $target . "
             (account_name, email_address, account_type, server_host, server_port, encryption,
              username, password, sync_folder, is_active, auto_import, import_frequency,
              last_import, last_sync)
@@ -136,18 +218,34 @@ class hooks_ksf_FA_CRM extends hooks {
              c.auto_import, c.import_frequency, c.last_import, c.last_import
             FROM " . TB_PREF . "fa_crm_email_accounts c
             WHERE NOT EXISTS (
-                SELECT 1 FROM " . TB_PREF . "fa_em_accounts e WHERE e.email_address = c.email_address
+                SELECT 1 FROM " . TB_PREF . $target . " e WHERE e.email_address = c.email_address
             )", 'Could not migrate CRM email accounts');
+    }
+
+    /**
+     * EmailManager's accounts table, preferring the convention-compliant name
+     * and falling back to the pre-rename one so the handover still works on an
+     * installation where only the legacy table has been created so far.
+     *
+     * @return string|false Unprefixed table name, or false if neither exists
+     */
+    private function email_manager_accounts_table() {
+        foreach (array('ksf_em_accounts', 'fa_em_accounts') as $table) {
+            if ($this->crm_table_exists($table)) {
+                return $table;
+            }
+        }
+        return false;
     }
 
     /**
      * Installations provisioned by the retired PHP-side ensure_email_schema()
      * predate the scheduling columns the CRM owned, so add whichever are absent
-     * before the copy below references them.
+     * before the copy above references them.
      */
-    private function add_email_scheduling_columns() {
+    private function add_email_scheduling_columns($target) {
         $present = array();
-        $res = db_query("SHOW COLUMNS FROM " . TB_PREF . "fa_em_accounts", 'Cannot inspect fa_em_accounts');
+        $res = db_query("SHOW COLUMNS FROM " . TB_PREF . $target, 'Cannot inspect email accounts');
         while ($col = db_fetch_assoc($res)) {
             $present[$col['Field']] = true;
         }
@@ -166,7 +264,7 @@ class hooks_ksf_FA_CRM extends hooks {
         }
 
         if ($add) {
-            db_query("ALTER TABLE " . TB_PREF . "fa_em_accounts " . implode(', ', $add),
+            db_query("ALTER TABLE " . TB_PREF . $target . " " . implode(', ', $add),
                 'Could not add email scheduling columns');
         }
     }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Ksfraser\FA\CRM\Repository;
 
 /**
- * Repository for CRM leads (0_fa_crm_leads).
+ * Repository for CRM leads (0_ksf_crm_leads).
  *
  * Rows are returned as associative arrays (no entity layer — leads are
  * transactional records, not DDL-cached reference data).

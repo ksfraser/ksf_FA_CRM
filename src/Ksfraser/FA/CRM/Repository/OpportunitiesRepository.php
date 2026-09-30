@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Ksfraser\FA\CRM\Repository;
 
 /**
- * Repository for CRM opportunities (0_fa_crm_opportunities).
+ * Repository for CRM opportunities (0_ksf_crm_opportunities).
  *
  * Rows are returned as associative arrays (transactional records, no entity
  * layer). Columns follow the install.sql schema.

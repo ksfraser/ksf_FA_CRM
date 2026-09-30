@@ -71,7 +71,7 @@ class ContactsService
     {
         return [
             'entity'       => 'contact',
-            'table'        => '0_fa_crm_contacts',
+            'table'        => '0_ksf_crm_contacts',
             'label'        => 'Contact',
             'labelPlural'  => 'Contacts',
             'hookPrefix'   => 'Contact',

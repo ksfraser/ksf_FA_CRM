@@ -7,7 +7,7 @@ namespace Ksfraser\FA\CRM\Entity;
 /**
  * CustomerType reference-data entity.
  *
- * Maps to 0_fa_crm_customer_types.
+ * Maps to 0_ksf_crm_customer_types.
  *
  * @see BR-006 (Cross-Module DDL Caching)
  *

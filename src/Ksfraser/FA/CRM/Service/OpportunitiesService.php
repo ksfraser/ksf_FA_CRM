@@ -126,7 +126,7 @@ class OpportunitiesService
     {
         return [
             'entity'       => 'opportunity',
-            'table'        => '0_fa_crm_opportunities',
+            'table'        => '0_ksf_crm_opportunities',
             'label'        => 'Opportunity',
             'labelPlural'  => 'Opportunities',
             'hookPrefix'   => 'Opportunity',

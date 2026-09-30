@@ -6,7 +6,8 @@ Status: Approved — BABOK; implementation parks next stage.
 Module: ksf_FA_CRM (answers contact identity for classification; read-only).
 
 ## Need (BABOK What-not-How)
-CRM owns `0_crm_persons`. When an attendee is a known CRM CONTACT but not an
+CRM is a read-only *client* of the native `0_crm_persons` (native FA owns it;
+see FR-CRM-007-002 §2). When an attendee is a known CRM CONTACT but not an
 active employee, that is authoritative signal the person is EXTERNAL
 (customer/vendor/other-org) — so the close workflow marks them supporting-role
 (no auto-time) without Timesheets reading CRM tables.

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Ksfraser\FA\CRM\Repository;
 
 /**
- * Repository for CRM option lists (0_fa_crm_option_lists).
+ * Repository for CRM option lists (0_ksf_crm_option_lists).
  *
  * Single generic reference table backing the editable opportunity DDL sets
  * (source / type / realm / stage). Stage rows carry a `probability` used to

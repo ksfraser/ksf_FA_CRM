@@ -268,7 +268,7 @@ class RealmServiceTest extends TestCase
     {
         $md = RealmService::getFieldMetadata();
         $this->assertSame('realm', $md['entity']);
-        $this->assertSame('0_fa_crm_realms', $md['table']);
+        $this->assertSame('0_ksf_crm_realms', $md['table']);
         $this->assertSame('Realms', $md['labelPlural']);
         $this->assertSame('id', $md['pk']);
     }

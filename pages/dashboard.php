@@ -78,7 +78,7 @@ if (count($opportunities) > 0) {
 
 function CRM_num_customers()
 {
-    $sql = "SELECT COUNT(*) AS cnt FROM `0_fa_crm_customers` WHERE inactive = 0";
+    $sql = "SELECT COUNT(*) AS cnt FROM `0_ksf_crm_customers` WHERE inactive = 0";
     $result = db_query($sql, false);
     if (!$result) {
         return 0;
@@ -89,7 +89,7 @@ function CRM_num_customers()
 
 function CRM_num_opportunities()
 {
-    $sql = "SELECT COUNT(*) AS cnt FROM `0_fa_crm_opportunities` WHERE inactive = 0";
+    $sql = "SELECT COUNT(*) AS cnt FROM `0_ksf_crm_opportunities` WHERE inactive = 0";
     $result = db_query($sql, false);
     if (!$result) {
         return 0;
@@ -100,7 +100,7 @@ function CRM_num_opportunities()
 
 function CRM_num_leads()
 {
-    $sql = "SELECT COUNT(*) AS cnt FROM `0_fa_crm_leads`";
+    $sql = "SELECT COUNT(*) AS cnt FROM `0_ksf_crm_leads`";
     $result = db_query($sql, false);
     if (!$result) {
         return 0;
@@ -112,7 +112,7 @@ function CRM_num_leads()
 function CRM_upcoming_followups($limit = 10)
 {
     $sql = "SELECT c.id, c.debtor_no, d.name, c.next_followup_date, c.account_manager
-            FROM `0_fa_crm_customers` c
+            FROM `0_ksf_crm_customers` c
             JOIN `0_debtors_master` d ON d.debtor_no = c.debtor_no
             WHERE c.next_followup_date >= DATE(NOW())
               AND c.next_followup_date <= DATE_ADD(DATE(NOW()), INTERVAL 30 DAY)
@@ -135,7 +135,7 @@ function CRM_upcoming_followups($limit = 10)
 function CRM_recent_opportunities($limit = 5)
 {
     $sql = "SELECT opportunity_name, estimated_value, stage, expected_close_date
-            FROM `0_fa_crm_opportunities`
+            FROM `0_ksf_crm_opportunities`
             WHERE inactive = 0
             ORDER BY created_at DESC
             LIMIT " . (int) $limit;

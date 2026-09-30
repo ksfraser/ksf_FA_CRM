@@ -7,7 +7,7 @@ namespace Ksfraser\FA\CRM\Repository;
 use Ksfraser\FA\CRM\Entity\CustomerType;
 
 /**
- * Repository for CRM customer types (0_fa_crm_customer_types).
+ * Repository for CRM customer types (0_ksf_crm_customer_types).
  *
  * @see BR-006 (Cross-Module DDL Caching)
  *

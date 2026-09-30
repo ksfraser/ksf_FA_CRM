@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Ksfraser\FA\CRM\Repository;
 
 /**
- * Repository for CRM contacts (0_fa_crm_contacts).
+ * Repository for CRM contacts (0_ksf_crm_contacts).
  *
  * Contact persons attached to a debtor (FA customer). Rows are associative
  * arrays (transactional records, no entity layer).

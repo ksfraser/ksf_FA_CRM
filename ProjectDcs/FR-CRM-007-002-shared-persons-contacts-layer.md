@@ -1,11 +1,12 @@
 # FR-CRM-007-002 — Shared Persons / Contacts Layer (Cluster D)
 
-**Status:** DRAFT — design for review (not yet implemented)
-**Issues:** #14, #15, #30 (+ the I/F/B & CASL product directive)
+**Status:** APPROVED — requirements ratified 2026-09 (BR-CRM-09); implementation pending
+**Issues:** #14, #15, #30 (+ the I/F/B & consent product directive)
 **Module:** ksf_FA_CRM
-**Author:** (drafted for product sign-off)
+**Author:** KSF
 **Date:** 2026-09-25
-**Siblings:** FR-CRM-007-001 (contact classification), FR-CRM-002-001 (quote→order)
+**Siblings:** FR-CRM-007-001 (contact classification), FR-CRM-007-003 (debtor
+classification), FR-CRM-007-004 (opt-in consent), FR-CRM-002-001 (quote→order)
 
 ---
 
@@ -93,36 +94,82 @@ user entities. The CRM should adopt it, not duplicate it.
   customer filter is "ALL"; offer a **branch selector** (checkbox across the
   debtor's branches) rather than re-entering a contact per branch.
 
-### 3.2 Person extension for I/F/B + CASL (side table, no core ALTER)
+### 3.2 Debtor classification + opt-in consent (side tables, no core ALTER)
 
-Native `crm_persons` has no I/F/B or consent columns. Rather than ALTER a core FA
-table (upgrade-fragile), add a CRM-owned **side table** keyed by the native person id:
+Two **separate** side tables, because the two attributes answer different
+questions and live on different subjects (BR-CRM-09). The earlier single
+`0_fa_crm_person_profiles` sketch is withdrawn: it put I/F/B and an `opt_out`
+honour flag on the *person*, which is the wrong axis and the wrong polarity.
+
+**1. Classification belongs to the debtor** (FR-CRM-007-003). I/F/B describes the
+account — individual, family (one bill, several people) or business — not any one
+contact:
 
 ```sql
-CREATE TABLE IF NOT EXISTS `0_fa_crm_person_profiles` (
-  `person_id`      INT(11) NOT NULL COMMENT 'FK to crm_persons.id (native)',
-  `person_type`    CHAR(1) NOT NULL DEFAULT 'I' COMMENT 'I=Individual, F=Family, B=Business',
-  `consent_status` VARCHAR(20) NOT NULL DEFAULT 'unknown' COMMENT 'unknown,pending,granted,revoked',
-  `consent_date`   DATE DEFAULT NULL COMMENT 'CASL consent date',
-  `consent_source` VARCHAR(100) DEFAULT NULL COMMENT 'where consent was captured',
-  `consent_ip`     VARCHAR(45) DEFAULT NULL,
-  `marketing_opt_out` TINYINT(1) DEFAULT 0 COMMENT 'CASL/unsubscribe honour-list',
-  `preferred_contact_method` VARCHAR(20) DEFAULT 'email',
-  `notes`          TEXT,
-  `updated_at`     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`person_id`),
-  KEY `idx_person_type` (`person_type`),
-  KEY `idx_consent_status` (`consent_status`)
+CREATE TABLE IF NOT EXISTS `0_fa_crm_account_types` (
+  `debtor_no`    INT(11) NOT NULL COMMENT 'FK to debtors_master.debtor_no (native)',
+  `account_type` CHAR(1) NOT NULL DEFAULT 'I' COMMENT 'I=Individual, F=Family, B=Business',
+  `notes`        TEXT,
+  `updated_by`   INT(11) NULL COMMENT 'user_id who set it',
+  `updated_at`   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`debtor_no`),
+  KEY `idx_account_type` (`account_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-- **I/F/B** is a *person* classification: how we approach them (a business is
-  approached at the company/role level; a family/individual personally) and a CASL
-  input (consent is captured from a named person).
-- **CASL** (Canada's anti-spam law): `consent_status` + `consent_date` +
-  `consent_source` give the auditable consent record; `marketing_opt_out` is the
-  honour list. Marketing sends must filter on `consent_status='granted'` and
-  `marketing_opt_out=0` (deferred to the Email/Marketing module).
+**2. One opt-in consent registry, reused for debtors and contacts**
+(FR-CRM-007-004). A polymorphic `(subject_type, subject_id)` key lets the same
+table and the same code path answer "may we email this account?" and "may we
+email this person?":
+
+```sql
+CREATE TABLE IF NOT EXISTS `0_fa_crm_consents` (
+  `consent_id`     INT(11) NOT NULL AUTO_INCREMENT,
+  `subject_type`   VARCHAR(16) NOT NULL COMMENT 'debtor (debtors_master.debtor_no) | contact (crm_persons.id)',
+  `subject_id`     INT(11) NOT NULL,
+  `purpose`        VARCHAR(16) NOT NULL DEFAULT 'marketing' COMMENT 'marketing | service',
+  `status`         VARCHAR(16) NOT NULL DEFAULT 'pending' COMMENT 'pending | opted_in | opted_out',
+  `captured_at`    DATETIME NULL,
+  `method`         VARCHAR(32) NULL COMMENT 'web_form | import | phone | counter | email',
+  `source`         VARCHAR(120) NULL COMMENT 'form, URL, or staff note',
+  `capture_ip`     VARCHAR(45) NULL,
+  `notes`          TEXT,
+  `updated_by`     INT(11) NULL,
+  `updated_at`     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`consent_id`),
+  UNIQUE KEY `uq_subject` (`subject_type`, `subject_id`, `purpose`),
+  KEY `idx_status_purpose` (`status`, `purpose`),
+  KEY `idx_subject` (`subject_type`, `subject_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+**Polarity is opt-in.** `status` is `pending` until someone affirmatively opts in.
+A missing row, a `pending` row, and a lookup failure are all **not marketable** —
+`isMarketingEligible()` must fail closed, never default to allow. There is no
+`opt_out` boolean, because a boolean that defaults to 0 defaults to *permitted*,
+which is the failure mode this replaces.
+
+**Inheritance is asymmetric, keyed on the debtor's type** — this is where I/F/B
+earns its place:
+
+| Debtor type | Inherit account consent to a contact for marketing? |
+|---|---|
+| `B` business | **Yes**, but only at the debtor's *business address* |
+| `F` family | **No** — each member is a separate natural person; children cannot consent at all |
+| `I` individual | n/a — the debtor *is* the person, so their own record governs |
+
+Order of resolution, short-circuiting:
+
+1. Contact's own `opted_out` → **ineligible**. Absolute; inheritance never
+   re-enables a stated refusal.
+2. Contact's own `opted_in` → eligible.
+3. Otherwise: debtor `B` **and** the address is the business address → eligible
+   (inherited).
+4. Otherwise → **ineligible**, with the reason naming the missing record.
+
+Purpose stays orthogonal: `service` mail (invoices, statements, transactional
+notices) is not gated by marketing consent, so a person with no marketing opt-in
+is still receivable.
 
 ### 3.3 Lead = a debtor with an attached contact
 
@@ -195,18 +242,33 @@ source table is retained read-only until sign-off).
 
 ---
 
-## 6. Open questions (need product decision before implementation)
+## 6. Resolved questions (product decisions, 2026-09)
 
-1. **I/F/B default & derivation** — is `person_type` entered manually, or derived
-   (a person with an account-role link ⇒ B; solo person ⇒ I)? Default to `I`?
-2. **CASL scope** — is consent captured only on the person, or also at the account
-   level (one consent for the whole company)? Recommended: person-level only.
-3. **HRM employees** — should the employee record be the same `crm_persons` row
-   (linked with a `type='user'`/new `employee` category), or a separate `0_person`
-   HRM identity that merely xrefs a `crm_persons` row? This affects HRM, so coordinate
-   with the HRM owner before building the employee link.
-4. **Migration backfill** — is a default `person_type`/consent acceptable, or must an
-   operator curate I/F/B for existing records before cut-over?
+All four are settled in **BR-CRM-09**; this section records the answers and where
+they are now specified.
+
+1. **I/F/B default & derivation** — *resolved, axis corrected.* I/F/B is an
+   attribute of the **debtor**, not the person: a customer can be one individual,
+   one family account carrying several people (one bill, several renters/lines), or
+   one business with staff contacts. It is **entered, not derived** — deriving it
+   from contact structure would misread every family account as an individual.
+   Default `I`, which is the strictest consent case. See FR-CRM-007-003.
+2. **CASL scope** — *resolved, widened from the earlier recommendation.* Consent
+   is captured at **both** levels but in **one shared opt-in table** keyed by
+   `(subject_type, subject_id, purpose)`, so debtor and contact use the same code
+   path. It is opt-in, not opt-out: absent ⇒ not marketable. Inheritance runs
+   from a `B` debtor to its contacts at the business address only; `F` never
+   inherits; an explicit per-person opt-out is an absolute override. See
+   FR-CRM-007-004 and UC-CRM-007-003.
+3. **HRM employees** — *resolved.* HRM keeps its **own** `persons` identity as the
+   system of record and xrefs a native `crm_persons` row; HRM does not migrate.
+   Merging employee identity into CRM is HRM's call, not CRM's. Coordinate the
+   xref table name with the HRM owner before building the link.
+4. **Migration backfill** — *resolved.* No curated sign-off is required to
+   cut over: the legacy contact rows migrate idempotently, and every consent
+   lands `pending` (not marketable). Classification defaults `I`. Operators
+   curate afterwards through normal screens, and a later BR may add append-only
+   consent events (explicitly out of scope of FR-CRM-007-004 §5).
 
 ---
 

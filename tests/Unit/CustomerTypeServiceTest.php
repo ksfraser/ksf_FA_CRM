@@ -285,7 +285,7 @@ class CustomerTypeServiceTest extends TestCase
     {
         $md = CustomerTypeService::getFieldMetadata();
         $this->assertSame('customer_type', $md['entity']);
-        $this->assertSame('0_fa_crm_customer_types', $md['table']);
+        $this->assertSame('0_ksf_crm_customer_types', $md['table']);
         $this->assertSame('Customer Types', $md['labelPlural']);
         $this->assertSame('id', $md['pk']);
     }

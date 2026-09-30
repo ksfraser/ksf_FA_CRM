@@ -148,7 +148,7 @@ class OptionListsService
 
         return [
             'entity'       => 'option',
-            'table'        => '0_fa_crm_option_lists',
+            'table'        => '0_ksf_crm_option_lists',
             'label'        => $label,
             'labelPlural'  => $labelPlural,
             'hookPrefix'   => 'Option',

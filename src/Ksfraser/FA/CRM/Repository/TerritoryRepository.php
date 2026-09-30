@@ -7,7 +7,7 @@ namespace Ksfraser\FA\CRM\Repository;
 use Ksfraser\FA\CRM\Entity\Territory;
 
 /**
- * Repository for CRM territories (0_fa_crm_territories).
+ * Repository for CRM territories (0_ksf_crm_territories).
  *
  * @see BR-006 (Cross-Module DDL Caching)
  *

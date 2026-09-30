@@ -7,7 +7,7 @@ namespace Ksfraser\FA\CRM\Entity;
 /**
  * Realm reference-data entity.
  *
- * Maps to 0_fa_crm_realms.
+ * Maps to 0_ksf_crm_realms.
  *
  * @see BR-006 (Cross-Module DDL Caching)
  *

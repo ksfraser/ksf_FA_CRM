@@ -7,7 +7,7 @@ namespace Ksfraser\FA\CRM\Entity;
 /**
  * Territory reference-data entity.
  *
- * Maps to 0_fa_crm_territories.
+ * Maps to 0_ksf_crm_territories.
  *
  * @see BR-006 (Cross-Module DDL Caching)
  *

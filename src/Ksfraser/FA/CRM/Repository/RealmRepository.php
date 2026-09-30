@@ -7,7 +7,7 @@ namespace Ksfraser\FA\CRM\Repository;
 use Ksfraser\FA\CRM\Entity\Realm;
 
 /**
- * Repository for CRM realms (0_fa_crm_realms).
+ * Repository for CRM realms (0_ksf_crm_realms).
  *
  * @see BR-006 (Cross-Module DDL Caching)
  *

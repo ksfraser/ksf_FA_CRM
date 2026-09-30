@@ -243,7 +243,7 @@ class TerritoryServiceTest extends TestCase
     {
         $md = TerritoryService::getFieldMetadata();
         $this->assertSame('territory', $md['entity']);
-        $this->assertSame('0_fa_crm_territories', $md['table']);
+        $this->assertSame('0_ksf_crm_territories', $md['table']);
         $this->assertSame('Territories', $md['labelPlural']);
         $this->assertSame('id', $md['pk']);
     }

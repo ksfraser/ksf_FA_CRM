@@ -281,11 +281,10 @@ Ksfraser\FA\CRM\Controller\ContactsTabController
         │  (SRP: tab/UI only — no SQL)
         ▼
 Ksfraser\FA\CRM\Service\ContactsService
-        │  (SRP: use-cases, validation, I/F-B + CASL rules)
+        │  (SRP: use-cases, validation, branch scoping)
         ▼
 Ksfraser\FA\CRM\Repository\PersonsRepository        <-- NEW, Cluster D
-        │  (SRP: translates CRM concepts ⇄ native DTOs;
-        │   adds the person-profile side-table; owns no SQL of its own)
+        │  (SRP: translates CRM concepts ⇄ native DTOs; owns no SQL of its own)
         ├──────────────────────────────► FrontAccounting\Repository\CrmPersonRepository
         ├──────────────────────────────► FrontAccounting\Repository\CrmContactRepository
         │                                        │
@@ -299,7 +298,8 @@ Ksfraser\FA\CRM\Repository\PersonsRepository        <-- NEW, Cluster D
         │                                        ▼
         │                              FA 2.4.3  crm_persons / crm_contacts / crm_categories
         │
-        └──────────────────────────────► 0_fa_crm_person_profiles  (I/F-B + CASL, module-owned)
+        └──────────────────────────────► 0_fa_crm_account_types  (I/F-B on the DEBTOR)
+        └──────────────────────────────► 0_fa_crm_consents       (opt-in consent; debtor OR contact)
 ```
 
 **Rules that follow from this:**
@@ -316,8 +316,10 @@ Ksfraser\FA\CRM\Repository\PersonsRepository        <-- NEW, Cluster D
    (`add_crm_person`/`update_crm_person` for create/edit-with-links,
    `update_person_contacts` for re-linking). Native functions must be guarded with
    `function_exists()` and injected as callables so tests stay database-free.
-4. `0_fa_crm_person_profiles` (I/F-B + CASL) stays **module-owned** — native FA has
-   no consent concept, and this must not become a core-table ALTER.
+4. `0_fa_crm_account_types` (I/F-B on the debtor) and `0_fa_crm_consents` (opt-in
+   consent, one table for debtors and contacts) stay **module-owned** — native FA
+   has no consent concept, and these must not become core-table ALTERs. Note that
+   I/F-B is a *debtor* attribute, not a person attribute: see BR-CRM-09.
 5. Do **not** reference `DatabaseAdapterFactory` (H4). Do **not** let
    `addslashes`-escaped values be the last line of defence (H3).
 

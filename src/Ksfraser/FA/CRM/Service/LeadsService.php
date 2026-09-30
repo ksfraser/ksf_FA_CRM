@@ -66,7 +66,7 @@ class LeadsService
     {
         return [
             'entity'       => 'lead',
-            'table'        => '0_fa_crm_leads',
+            'table'        => '0_ksf_crm_leads',
             'label'        => 'Lead',
             'labelPlural'  => 'Leads',
             'hookPrefix'   => 'Lead',

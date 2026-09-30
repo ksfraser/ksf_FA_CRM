@@ -10,7 +10,7 @@ use Ksfraser\FA\CRM\Service\QuotesService;
 /**
  * QuotesTabController — controller SRP for the CRM Quotes tab.
  *
- * Manages the single-row quote header (0_fa_crm_quotes). No line-item
+ * Manages the single-row quote header (0_ksf_crm_quotes). No line-item
  * subeditor (see APP_TAB_ARCHITECTURE.md §11).
  *
  * PHP 7.3 compatible.

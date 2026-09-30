@@ -11,7 +11,7 @@ use Ksfraser\FA\CRM\Service\LeadsService;
  * LeadsTabController — controller SRP for the CRM Leads tab.
  *
  * Summary table + always-visible entry form backed by the DAO LeadsService
- * (0_fa_crm_leads). Customer and rating/status select options are supplied
+ * (0_ksf_crm_leads). Customer and rating/status select options are supplied
  * via fkOptions().
  *
  * PHP 7.3 compatible.

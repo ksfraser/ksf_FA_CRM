@@ -10,7 +10,7 @@ use Ksfraser\FA\CRM\Service\ContactsService;
 /**
  * ContactsTabController — controller SRP for the CRM Contacts tab.
  *
- * Manages contact persons (0_fa_crm_contacts) attached to customers.
+ * Manages contact persons (0_ksf_crm_contacts) attached to customers.
  *
  * PHP 7.3 compatible.
  *

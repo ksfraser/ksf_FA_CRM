@@ -168,7 +168,7 @@ class RealmService
     {
         return [
             'entity'      => 'realm',
-            'table'       => '0_fa_crm_realms',
+            'table'       => '0_ksf_crm_realms',
             'label'       => 'Realm',
             'labelPlural' => 'Realms',
             'hookPrefix'  => 'Realm',

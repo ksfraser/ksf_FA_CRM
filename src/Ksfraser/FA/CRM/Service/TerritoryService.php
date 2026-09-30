@@ -168,7 +168,7 @@ class TerritoryService
     {
         return [
             'entity'      => 'territory',
-            'table'       => '0_fa_crm_territories',
+            'table'       => '0_ksf_crm_territories',
             'label'       => 'Territory',
             'labelPlural' => 'Territories',
             'hookPrefix'  => 'Territory',

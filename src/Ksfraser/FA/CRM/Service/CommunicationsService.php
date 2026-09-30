@@ -66,7 +66,7 @@ class CommunicationsService
     {
         return [
             'entity'       => 'communication',
-            'table'        => '0_fa_crm_communications',
+            'table'        => '0_ksf_crm_communications',
             'label'        => 'Communication',
             'labelPlural'  => 'Communications',
             'hookPrefix'   => 'Communication',

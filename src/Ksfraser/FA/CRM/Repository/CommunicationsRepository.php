@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Ksfraser\FA\CRM\Repository;
 
 /**
- * Repository for CRM communications (0_fa_crm_communications).
+ * Repository for CRM communications (0_ksf_crm_communications).
  *
  * PHP 7.3 compatible.
  *

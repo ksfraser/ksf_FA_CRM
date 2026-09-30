@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Ksfraser\FA\CRM\Repository;
 
 /**
- * Repository for CRM quotes (0_fa_crm_quotes) header rows.
+ * Repository for CRM quotes (0_ksf_crm_quotes) header rows.
  *
  * Note: quote line items are not managed by the tab controller; this repo
  * covers the single-row quote header only (see APP_TAB_ARCHITECTURE.md §11

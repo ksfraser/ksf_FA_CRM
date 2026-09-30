@@ -168,7 +168,7 @@ class CustomerTypeService
     {
         return [
             'entity'      => 'customer_type',
-            'table'       => '0_fa_crm_customer_types',
+            'table'       => '0_ksf_crm_customer_types',
             'label'       => 'Customer Type',
             'labelPlural' => 'Customer Types',
             'hookPrefix'  => 'CustomerType',

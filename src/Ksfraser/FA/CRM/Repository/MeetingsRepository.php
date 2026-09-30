@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Ksfraser\FA\CRM\Repository;
 
 /**
- * Repository for CRM meetings (0_fa_crm_meetings).
+ * Repository for CRM meetings (0_ksf_crm_meetings).
  *
- * Meeting header row. Attendees live in 0_fa_crm_meeting_attendees (managed
+ * Meeting header row. Attendees live in 0_ksf_crm_meeting_attendees (managed
  * out of scope of the tab controller).
  *
  * PHP 7.3 compatible.

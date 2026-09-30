@@ -66,7 +66,7 @@ class MeetingsService
     {
         return [
             'entity'       => 'meeting',
-            'table'        => '0_fa_crm_meetings',
+            'table'        => '0_ksf_crm_meetings',
             'label'        => 'Meeting',
             'labelPlural'  => 'Meetings',
             'hookPrefix'   => 'Meeting',

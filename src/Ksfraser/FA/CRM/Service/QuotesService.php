@@ -66,7 +66,7 @@ class QuotesService
     {
         return [
             'entity'       => 'quote',
-            'table'        => '0_fa_crm_quotes',
+            'table'        => '0_ksf_crm_quotes',
             'label'        => 'Quote',
             'labelPlural'  => 'Quotes',
             'hookPrefix'   => 'Quote',
