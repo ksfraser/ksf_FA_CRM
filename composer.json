@@ -13,7 +13,7 @@
         "ksfraser/html": "*"
     },
     "require-dev": {
-        "phpunit/phpunit": "^10.0"
+        "phpunit/phpunit": "^9.6"
     },
     "autoload": {
         "psr-4": {
@@ -50,5 +50,11 @@
             "type": "vcs",
             "url": "https://github.com/ksfraser/ksf_CRM_GEDCOM"
         }
-    ]
+    ],
+    "config": {
+        "platform": {
+            "php": "7.4.33"
+        },
+        "sort-packages": true
+    }
 }

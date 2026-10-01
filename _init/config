@@ -9,4 +9,4 @@ InstallPath: modules/ksf_FA_CRM
 Filename: ksf_FA_CRM
 Version: 2.4.3-0
 FA-Version: 2.4
-PHP-Version: 7.3
+PHP-Version: 7.4
