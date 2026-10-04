@@ -437,6 +437,76 @@ class hooks_ksf_FA_CRM extends hooks {
         $service = new \Ksfraser\FA\CRM\Service\RealmService();
         return $service->hookGetRealmHtmlOptions($data, $opts);
     }
+
+    // ─── Debtor / Contact option responders ────────────────────────────
+    // Read-only list seams so other modules (Notes, Calendar, ...) build
+    // their customer and contact dropdowns by asking CRM rather than
+    // querying debtors_master / crm_persons themselves.
+
+    /**
+     * Debtors as a value => label map.
+     *
+     * @param array      $data Modified by reference; 'options' is populated
+     * @param array|null $opts active_only
+     * @return array
+     */
+    function getDebtorOptions(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\DebtorOptionsService();
+        return $service->hookGetDebtorOptions($data, $opts);
+    }
+
+    /**
+     * Debtors as option records with selection state, for DDL rendering.
+     *
+     * @param array      $data Modified by reference; 'options' is populated
+     * @param array|null $opts active_only, blank_label, format, selected_id
+     * @return array
+     */
+    function getDebtorOptionsHtmlOptions(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\DebtorOptionsService();
+        return $service->hookGetDebtorOptionsHtmlOptions($data, $opts);
+    }
+
+    /**
+     * Native FA persons (customer contacts and HRM employees) as a
+     * value => label map.
+     *
+     * @param array      $data Modified by reference; 'options' is populated
+     * @param array|null $opts active_only
+     * @return array
+     */
+    function getContactOptions(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\ContactOptionsService();
+        return $service->hookGetContactOptions($data, $opts);
+    }
+
+    /**
+     * Native FA persons as option records with selection state.
+     *
+     * @param array      $data Modified by reference; 'options' is populated
+     * @param array|null $opts active_only, blank_label, format, selected_id
+     * @return array
+     */
+    function getContactOptionsHtmlOptions(&$data, $opts = null)
+    {
+        $autoload = __DIR__ . '/vendor/autoload.php';
+        if (!file_exists($autoload)) { return []; }
+        require_once $autoload;
+        $service = new \Ksfraser\FA\CRM\Service\ContactOptionsService();
+        return $service->hookGetContactOptionsHtmlOptions($data, $opts);
+    }
 }
 
 class crm_app extends application {
