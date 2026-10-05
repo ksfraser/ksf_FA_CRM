@@ -22,7 +22,7 @@ class OpportunitiesRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_opportunities';
+    private string $table = 'ksf_crm_opportunities';
 
     public function findAll(): array
     {
@@ -147,7 +147,7 @@ class OpportunitiesRepository
     /** @return array<string,string> option_value => option_label for a CRM option list. */
     public function optionListOptions(string $listKey): array
     {
-        $sql = "SELECT option_value, option_label FROM " . TB_PREF . "fa_crm_option_lists"
+        $sql = "SELECT option_value, option_label FROM " . TB_PREF . "ksf_crm_option_lists"
             . " WHERE list_key = " . $this->escape($listKey)
             . " AND inactive = 0 ORDER BY sort_order ASC, option_label ASC";
         $rows = $this->dbFetchAll($this->dbQuery($sql));
@@ -164,7 +164,7 @@ class OpportunitiesRepository
         if ($value === '') {
             return null;
         }
-        $sql = "SELECT probability FROM " . TB_PREF . "fa_crm_option_lists"
+        $sql = "SELECT probability FROM " . TB_PREF . "ksf_crm_option_lists"
             . " WHERE list_key = 'opportunity_stage'"
             . " AND option_value = " . $this->escape($value) . " LIMIT 1";
         $row = $this->dbFetchAssoc($this->dbQuery($sql));

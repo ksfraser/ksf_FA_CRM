@@ -125,4 +125,40 @@ namespace {
             return $text;
         }
     }
+
+    if (!function_exists('hook_invoke_all')) {
+        /**
+         * Dispatches to responders seeded in $GLOBALS['__fa_hook_responders'].
+         *
+         * Keyed by hook name; each responder is a callable receiving the
+         * (by-reference) $data array. Lets unit tests exercise the
+         * "register-with-me" tab extension path without booting FA.
+         *
+         * @param string $hook Hook name, e.g. 'crm_register_tabs'
+         * @param array $data Dispatch payload, passed by reference
+         * @return null
+         */
+        function hook_invoke_all($hook, &$data)
+        {
+            if (!isset($GLOBALS['__fa_hook_responders'][$hook])) {
+                return null;
+            }
+            foreach ($GLOBALS['__fa_hook_responders'][$hook] as $responder) {
+                $responder($data);
+            }
+            return null;
+        }
+    }
+
+    if (!function_exists('add_access_extensions')) {
+        /**
+         * No-op stand-in so index-level includes are testable.
+         *
+         * @return null
+         */
+        function add_access_extensions()
+        {
+            return null;
+        }
+    }
 }

@@ -17,7 +17,7 @@ class TerritoryRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_territories';
+    private string $table = 'ksf_crm_territories';
 
     public function findActive(): array
     {

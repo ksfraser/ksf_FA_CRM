@@ -17,7 +17,7 @@ class CustomerTypeRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_customer_types';
+    private string $table = 'ksf_crm_customer_types';
 
     public function findActive(): array
     {

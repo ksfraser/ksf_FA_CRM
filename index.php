@@ -23,12 +23,12 @@ $path_to_root = "../..";
 
 $appShell = new \Ksfraser\FA\CRM\App\CrmAppShell();
 
-$view = isset($_GET['view']) ? (string) $_GET['view'] : $appShell->getDefaultView();
-if ($appShell->getTab($view) === null) {
-    $view = $appShell->getDefaultView();
-}
+// Provisional gate only. check_page_security() is invoked from inside page(),
+// which runs *after* boot() below, so the authoritative per-tab area is
+// assigned once contributed tabs have been merged in. Until then nothing
+// consumes this value.
+$page_security = 'SA_CRM_DASHBOARD';
 
-$page_security = $appShell->getSecurity($view, 'SA_CRM_DASHBOARD');
 include_once($path_to_root . "/includes/session.inc");
 add_access_extensions();
 
@@ -39,6 +39,17 @@ include_once($path_to_root . "/includes/ui.inc");
 
 // Fire the register-with-me hook: other modules may add their tabs now.
 $appShell->boot();
+
+// Resolve the requested tab against the FULL set (core + contributed) and take
+// its security area from the registration. This must happen after boot():
+// resolving earlier made a contributed tab unreachable by direct URL (it fell
+// back to the default view) and left $page_security on the CRM default, so an
+// extension tab's own access area was never enforced.
+$view = isset($_GET['view']) ? (string) $_GET['view'] : $appShell->getDefaultView();
+if ($appShell->getTab($view) === null) {
+    $view = $appShell->getDefaultView();
+}
+$page_security = $appShell->getSecurity($view, 'SA_CRM_DASHBOARD');
 
 $js = '';
 if (function_exists('user_use_date_picker') && user_use_date_picker()) {

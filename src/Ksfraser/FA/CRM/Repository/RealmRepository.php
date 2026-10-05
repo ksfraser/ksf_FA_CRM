@@ -17,7 +17,7 @@ class RealmRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_realms';
+    private string $table = 'ksf_crm_realms';
 
     public function findActive(): array
     {

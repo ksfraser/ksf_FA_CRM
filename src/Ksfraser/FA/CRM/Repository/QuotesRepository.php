@@ -23,7 +23,7 @@ class QuotesRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_quotes';
+    private string $table = 'ksf_crm_quotes';
 
     public function findAll(): array
     {

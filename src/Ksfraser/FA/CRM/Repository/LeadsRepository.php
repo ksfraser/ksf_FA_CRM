@@ -22,7 +22,7 @@ class LeadsRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_leads';
+    private string $table = 'ksf_crm_leads';
 
     public function findAll(): array
     {

@@ -19,7 +19,7 @@ class CommunicationsRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_communications';
+    private string $table = 'ksf_crm_communications';
 
     public function findAll(): array
     {

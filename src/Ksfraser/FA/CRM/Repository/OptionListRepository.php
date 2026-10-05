@@ -23,7 +23,7 @@ class OptionListRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_option_lists';
+    private string $table = 'ksf_crm_option_lists';
 
     public function findByList(string $listKey): array
     {

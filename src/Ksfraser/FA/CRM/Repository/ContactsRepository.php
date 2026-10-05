@@ -22,7 +22,7 @@ class ContactsRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_contacts';
+    private string $table = 'ksf_crm_contacts';
 
     public function findAll(?string $debtorNo = null): array
     {

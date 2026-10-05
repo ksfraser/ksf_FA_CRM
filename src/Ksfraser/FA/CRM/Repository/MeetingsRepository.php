@@ -22,7 +22,7 @@ class MeetingsRepository
 {
     use FaRepositoryTrait;
 
-    private string $table = 'fa_crm_meetings';
+    private string $table = 'ksf_crm_meetings';
 
     public function findAll(): array
     {
