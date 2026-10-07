@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Ksfraser\FA\CRM\Service\TerritoryService;
-use Ksfraser\FA\CRM\Repository\TerritoryRepository;
+use ksfraser\FrontAccounting\CRM\Service\TerritoryService;
+use ksfraser\FrontAccounting\CRM\Repository\TerritoryRepository;
 use Ksfraser\HTML\Elements\HtmlOption;
 
 /**

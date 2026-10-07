@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Ksfraser\FA\CRM\App\CrmAppShell;
+use ksfraser\FrontAccounting\CRM\App\CrmAppShell;
 
 /**
  * Verifies that CRM tabs can be contributed by other modules (ksfii_app /

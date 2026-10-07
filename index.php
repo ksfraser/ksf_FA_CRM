@@ -21,7 +21,7 @@ if (file_exists(__DIR__ . '/bootstrap.php')) {
 
 $path_to_root = "../..";
 
-$appShell = new \Ksfraser\FA\CRM\App\CrmAppShell();
+$appShell = new \ksfraser\FrontAccounting\CRM\App\CrmAppShell();
 
 // Provisional gate only. check_page_security() is invoked from inside page(),
 // which runs *after* boot() below, so the authoritative per-tab area is

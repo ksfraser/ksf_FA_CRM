@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Ksfraser\FA\CRM\Service\DebtorOptionsService;
-use Ksfraser\FA\CRM\Service\ContactOptionsService;
+use ksfraser\FrontAccounting\CRM\Service\DebtorOptionsService;
+use ksfraser\FrontAccounting\CRM\Service\ContactOptionsService;
 
 /**
  * Unit tests for the read-only option services that Notes (and any other

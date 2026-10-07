@@ -6,7 +6,7 @@
  * Imports emails from SMTP/IMAP servers and associates them with customer contacts
  */
 
-namespace Ksfraser\FA\CRM\Services;
+namespace ksfraser\FrontAccounting\CRM\Services;
 
 class EmailImportService
 {

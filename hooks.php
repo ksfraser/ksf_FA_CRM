@@ -358,7 +358,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\CustomerTypeService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\CustomerTypeService();
         return $service->hookGetCustomerTypes($data, $opts);
     }
 
@@ -367,7 +367,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\CustomerTypeService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\CustomerTypeService();
         return $service->hookGetCustomerTypeDDL($data, $opts);
     }
 
@@ -376,7 +376,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\CustomerTypeService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\CustomerTypeService();
         return $service->hookGetCustomerTypeHtmlOptions($data, $opts);
     }
 
@@ -387,7 +387,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\TerritoryService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\TerritoryService();
         return $service->hookGetTerritories($data, $opts);
     }
 
@@ -396,7 +396,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\TerritoryService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\TerritoryService();
         return $service->hookGetTerritoryDDL($data, $opts);
     }
 
@@ -405,7 +405,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\TerritoryService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\TerritoryService();
         return $service->hookGetTerritoryHtmlOptions($data, $opts);
     }
 
@@ -416,7 +416,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\RealmService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\RealmService();
         return $service->hookGetRealms($data, $opts);
     }
 
@@ -425,7 +425,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\RealmService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\RealmService();
         return $service->hookGetRealmDDL($data, $opts);
     }
 
@@ -434,7 +434,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\RealmService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\RealmService();
         return $service->hookGetRealmHtmlOptions($data, $opts);
     }
 
@@ -455,7 +455,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\DebtorOptionsService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\DebtorOptionsService();
         return $service->hookGetDebtorOptions($data, $opts);
     }
 
@@ -471,7 +471,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\DebtorOptionsService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\DebtorOptionsService();
         return $service->hookGetDebtorOptionsHtmlOptions($data, $opts);
     }
 
@@ -488,7 +488,7 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\ContactOptionsService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\ContactOptionsService();
         return $service->hookGetContactOptions($data, $opts);
     }
 
@@ -504,57 +504,8 @@ class hooks_ksf_FA_CRM extends hooks {
         $autoload = __DIR__ . '/vendor/autoload.php';
         if (!file_exists($autoload)) { return []; }
         require_once $autoload;
-        $service = new \Ksfraser\FA\CRM\Service\ContactOptionsService();
+        $service = new \ksfraser\FrontAccounting\CRM\Service\ContactOptionsService();
         return $service->hookGetContactOptionsHtmlOptions($data, $opts);
-    }
-    /**
-     * Create a new FA debtor, its default branch, and its default contact.
-     *
-     * This responder is a general-purpose contract, NOT a Square/WooCommerce
-     * entry point: source systems stage, and only ISU (or another approved
-     * module such as a future data-migration importer) may call this to have a
-     * native FA customer actually created.
-     *
-     * Accepts a CustomerDTO or a loosely-keyed array, normalises to a DTO, and
-     * delegates the native writes to CustomerCreationService. Failures are
-     * reported as success=false — never as a fabricated debtor number.
-     *
-     * @param array|\Ksfraser\FA\CRM\Entity\CustomerDTO $data Request DTO or array
-     * @param array|null $opts
-     * @return array Response array (success, fa_debtor_no, branch_code, contact_id)
-     */
-    function CREATE_CUSTOMER(&$data, $opts = null)
-    {
-        $autoload = __DIR__ . '/vendor/autoload.php';
-        if (!file_exists($autoload)) {
-            $data = ['success' => false, 'error' => 'ksf_FA_CRM autoloader missing'];
-            return $data;
-        }
-        require_once $autoload;
-
-        // Normalise input to a DTO.
-        if ($data instanceof \Ksfraser\FA\CRM\Entity\CustomerDTO) {
-            $dto = $data;
-        } elseif (is_array($data)) {
-            $dto = \Ksfraser\FA\CRM\Entity\CustomerDTO::fromArray($data);
-        } else {
-            $data = [
-                'success' => false,
-                'error' => 'CREATE_CUSTOMER requires a CustomerDTO or array payload',
-            ];
-            return $data;
-        }
-
-        try {
-            $service = new \Ksfraser\FA\CRM\Service\CustomerCreationService();
-            $response = $service->createCustomer($dto);
-        } catch (\Exception $e) {
-            $response = ['success' => false, 'error' => $e->getMessage()];
-        }
-
-        // Replace the request payload with the response.
-        $data = $response;
-        return $response;
     }
 }
 

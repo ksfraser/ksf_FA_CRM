@@ -40,7 +40,7 @@ class RepositoryTableNameTest extends TestCase
         'OptionListRepository' => 'ksf_crm_option_lists',
     ];
 
-    private const REPOSITORY_DIR = __DIR__ . '/../../src/Ksfraser/FA/CRM/Repository';
+    private const REPOSITORY_DIR = __DIR__ . '/../../src/FrontAccounting/CRM/Repository';
 
     /**
      * @dataProvider expectedTableProvider
@@ -104,7 +104,7 @@ class RepositoryTableNameTest extends TestCase
      */
     private function declaredTable(string $repository): string
     {
-        $class = 'Ksfraser\\FA\\CRM\\Repository\\' . $repository;
+        $class = 'ksfraser\\FrontAccounting\\CRM\\Repository\\' . $repository;
         $this->assertTrue(
             class_exists($class),
             "{$repository} must exist so the convention can be verified"

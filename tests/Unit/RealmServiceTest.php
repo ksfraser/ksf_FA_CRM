@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Ksfraser\FA\CRM\Service\RealmService;
-use Ksfraser\FA\CRM\Repository\RealmRepository;
+use ksfraser\FrontAccounting\CRM\Service\RealmService;
+use ksfraser\FrontAccounting\CRM\Repository\RealmRepository;
 use Ksfraser\HTML\Elements\HtmlOption;
 
 /**

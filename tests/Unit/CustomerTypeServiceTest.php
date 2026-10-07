@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Ksfraser\FA\CRM\Service\CustomerTypeService;
-use Ksfraser\FA\CRM\Repository\CustomerTypeRepository;
+use ksfraser\FrontAccounting\CRM\Service\CustomerTypeService;
+use ksfraser\FrontAccounting\CRM\Repository\CustomerTypeRepository;
 use Ksfraser\HTML\Elements\HtmlOption;
 
 /**

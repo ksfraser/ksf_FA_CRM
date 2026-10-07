@@ -17,8 +17,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Ksfraser\\FA\\CRM\\": "src/Ksfraser/FA/CRM/",
-            "Ksfraser\\FA\\CRM\\Services\\": "includes/"
+            "ksfraser\\FrontAccounting\\CRM\\": "src/FrontAccounting/CRM/"
         }
     },
     "minimum-stability": "dev",

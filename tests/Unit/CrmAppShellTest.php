@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use Ksfraser\FA\CRM\App\CrmAppShell;
-use Ksfraser\FA\CRM\Controller\AdminHubTabController;
-use Ksfraser\FA\CRM\Controller\CustomersTabController;
+use ksfraser\FrontAccounting\CRM\App\CrmAppShell;
+use ksfraser\FrontAccounting\CRM\Controller\AdminHubTabController;
+use ksfraser\FrontAccounting\CRM\Controller\CustomersTabController;
 
 /**
  * Unit tests for CrmAppShell — Cluster C admin sub-bar + native Customers tab.
