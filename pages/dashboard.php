@@ -8,7 +8,7 @@
  * @since 1.0.0
  */
 
-$path_to_root = "../..";
+$path_to_root = "../../..";
 
 $page_security = 'SA_CRM_DASHBOARD';
 include_once($path_to_root . "/includes/session.inc");
