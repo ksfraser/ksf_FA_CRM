@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use ksfraser\FrontAccounting\Common\App\AbstractFrontController;
 use ksfraser\FrontAccounting\CRM\App\CrmAppShell;
+use ksfraser\FrontAccounting\CRM\App\CrmFrontController;
 
 /**
  * Verifies that CRM tabs can be contributed by other modules (ksfii_app /
@@ -180,30 +182,52 @@ class TabExtensionTest extends TestCase
      *
      * The behavioural tests above re-implement the correct order, so on their
      * own they would stay green even if index.php were reverted. Assert the
-     * actual file: boot() must precede both the ?view= resolution and the
-     * authoritative $page_security assignment.
+     * actual files:
+     *
+     *   - index.php reads the area from the front controller BEFORE
+     *     session.inc (FA needs $page_security to open the session) and calls
+     *     run() exactly once, so boot() — which fires crm_register_tabs — and
+     *     the authoritative re-resolution of a contributed tab happen inside
+     *     the controller, never before the session exists;
+     *   - that controller does not override run(): the base's run() is final,
+     *     so boot() cannot be reordered after the security check or dropped.
      */
     public function testIndexPageBootsBeforeResolvingViewAndSecurity(): void
     {
         $source = (string) file_get_contents($this->moduleDir() . '/index.php');
 
-        $boot = strpos($source, '$appShell->boot()');
-        $resolve = strpos($source, "\$view = isset(\$_GET['view'])");
-        $security = strrpos($source, '$page_security = $appShell->getSecurity');
+        $area = strpos($source, '$frontController->getSecurityArea()');
+        $session = strpos($source, 'includes/session.inc');
+        $run = strpos($source, '$frontController->run()');
 
-        $this->assertNotFalse($boot, 'index.php must call boot()');
-        $this->assertNotFalse($resolve, 'index.php must resolve ?view=');
-        $this->assertNotFalse($security, 'index.php must assign $page_security');
+        $this->assertNotFalse($area, 'index.php must read the security area from the controller');
+        $this->assertNotFalse($session, 'index.php must include session.inc');
+        $this->assertNotFalse($run, 'index.php must call the front controller');
 
         $this->assertLessThan(
-            $resolve,
-            $boot,
-            'boot() must run before the ?view= resolution or contributed tabs are unreachable'
+            $session,
+            $area,
+            'the security area must be known before session.inc opens the session'
         );
         $this->assertLessThan(
-            $security,
-            $boot,
-            'boot() must run before $page_security or the contributed tab area is never enforced'
+            $run,
+            $session,
+            'run() must follow session.inc: boot() fires a hook that needs a session'
+        );
+        $this->assertSame(
+            1,
+            substr_count($source, '$frontController->run()'),
+            'run() must be called exactly once — the dispatch sequence is not repeatable'
+        );
+
+        $this->assertTrue(
+            (new \ReflectionMethod(AbstractFrontController::class, 'run'))->isFinal(),
+            'AbstractFrontController::run() must stay final'
+        );
+        $this->assertSame(
+            AbstractFrontController::class,
+            (new \ReflectionMethod(CrmFrontController::class, 'run'))->getDeclaringClass()->getName(),
+            'CrmFrontController must inherit run() so boot() and the access check cannot be reordered'
         );
     }
 

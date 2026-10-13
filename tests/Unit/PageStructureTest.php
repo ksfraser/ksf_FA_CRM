@@ -215,25 +215,38 @@ class PageStructureTest extends TestCase
     
     public function testIndexPageUsesValidViews(): void
     {
-        // Valid-views gate now lives in the AppShell router contract: the
-        // ?view= dispatcher resolves the tab from $appShell->getTab() and
-        // falls back to the SRP default view; pages are dispatched through
-        // the tab controller business-logic SRP (extends AbstractTabController).
+        // Valid-views routing now lives in the shared front controller
+        // (ksfraser/ksf-fa-common AbstractFrontController), which resolves the
+        // tab from the canonical `view` parameter, falls back to the shell's
+        // default view and dispatches through the tab controller SRP (extends
+        // AbstractTabController). index.php is the thin host page; the shell
+        // still owns the default view and the tab registry.
         $content = file_get_contents($this->moduleDir . '/index.php');
-        
-        $this->assertStringContainsString("getDefaultView", $content);
-        $this->assertStringContainsString("dispatch", $content);
-        $this->assertStringContainsString("getTab", $content);
+
+        $this->assertStringContainsString('CrmAppShell', $content);
+        $this->assertStringContainsString('CrmFrontController', $content);
+        $this->assertStringContainsString('$frontController->run()', $content);
+
+        $shell = file_get_contents($this->moduleDir . '/src/FrontAccounting/CRM/App/CrmAppShell.php');
+        $this->assertStringContainsString('extends AbstractAppShell', $shell);
+        $this->assertStringContainsString("parent::__construct('crm', 'index.php', 'view'", $shell);
+        $this->assertTrue(
+            is_subclass_of(
+                'ksfraser\\FrontAccounting\\CRM\\App\\CrmAppShell',
+                'ksfraser\\FrontAccounting\\Common\\App\\AbstractAppShell'
+            ),
+            'the shell must inherit default-view resolution, tab lookup and dispatch'
+        );
     }
-    
+
     public function testIndexPageCreatesSubMenu(): void
     {
-        // Sub-menu creation is now the AppShell's job (the shell owns the
-        // menu registry + render). index.php delegates to the shell, whose
-        // SRP it documents in the App/AppShell docblock.
+        // Sub-menu creation is the AppShell's job (the shell owns the menu
+        // registry + renderMenu()) and is called by the front controller's
+        // run(); index.php only bootstraps the controller.
         $content = file_get_contents($this->moduleDir . '/index.php');
-        
-        $this->assertStringContainsString("renderMenu", $content);
-        $this->assertStringContainsString("dispatch", $content);
+
+        $this->assertStringContainsString('new \ksfraser\FrontAccounting\CRM\App\CrmFrontController', $content);
+        $this->assertStringContainsString('SA_CRM_DASHBOARD', $content);
     }
 }
