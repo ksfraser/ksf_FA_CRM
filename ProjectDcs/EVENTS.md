@@ -1,422 +1,509 @@
 # KSF FrontAccounting — Event Registry
 
-Master list of all events emitted and listened to across KSF modules. Used to track cross-module communication and ensure no duplicate/conflicting events.
+Master list of all cross-module events in the KSF codebase. Each event is
+verified against actual `hook_invoke_all()` / `hook_invoke_first()` calls
+and corresponding listener methods in `hooks.php` files.
 
-**Format:**
-```
-Event Name: {object}_{action}
+**Conventions:**
+- `{object}_{action}` in snake_case — see `AGENTS_ARCH.md` §11.
+- `hook_invoke_all` = broadcast (any module can listen); `hook_invoke_first` =
+  first responder wins (return value to caller).
+- Emitters fire *after* state is committed. Listeners must be fault-tolerant.
 
-Emitters: (modules that emit this event)
-  - ksf_FA_ModuleName: emit condition
-
-Listeners: (modules that listen to this event)
-  - ksf_FA_ModuleName: action taken
-
-Payload:
-  - field: description
-```
+**Status legend:**
+- **Active** — emitter + at least one listener verified in code.
+- **Emitter-only** — emitter verified, no listener found in dev tree.
+- **Listener-only** — listener exists but no emitter calls `hook_invoke_all`.
+- **Planned** — designed in ProjectDcs/ docs only; no code yet.
 
 ---
 
-## Inventory / Stock Events
+## 1. Inventory & Item Events
 
-### `stock_reserved`
+### `item_created` — Active
 
-Stock was successfully reserved for an order.
+New stock item written.
 
-**Emitters:**
-- `ksf_FA_StockReservations`: When SO created and stock reserved successfully
-
+**Emitter:** `ksf_FA_Common` — `src/ItemEvents/ItemEventPublisher.php:167`
 **Listeners:**
-- `ksf_FA_Teams`: Create salesman followup task (if delivery date is future)
-
-**Payload:**
-```php
-[
-    'module'      => 'ksf_FA_StockReservations',
-    'event'       => 'stock_reserved',
-    'timestamp'   => '2024-01-15 14:30:00',
-    'so_order_no' => 12345,
-    'items'       => [
-        ['stock_id' => 'SKU-001', 'quantity' => 10, 'location' => 'MAIN'],
-    ],
-]
-```
+- `ksf_FA_Woocommerce` — `hooks.php:216` (sync to WC)
+- `ksf_FA_Square` — `hooks.php:285` (sync to Square)
 
 ---
 
-### `stock_released`
+### `item_updated` — Active
 
-Stock reservation was released (fulfilled, voided, cancelled).
+Existing stock item changed.
 
-**Emitters:**
-- `ksf_FA_StockReservations`: When SO voided, delivery completed, or cancelled
-
+**Emitter:** `ksf_FA_Common` — `src/ItemEvents/ItemEventPublisher.php:167`
 **Listeners:**
-- `ksf_FA_SuggestedPO`: Release related purchase suggestions
-- `ksf_FA_Teams`: Create followup task if needed
-
-**Payload:**
-```php
-[
-    'module'       => 'ksf_FA_StockReservations',
-    'event'        => 'stock_released',
-    'timestamp'    => '2024-01-15 14:30:00',
-    'so_order_no'  => 12345,
-    'items'        => [
-        ['stock_id' => 'SKU-001', 'quantity' => 10],
-    ],
-    'reason'       => 'voided',  // or 'delivered', 'cancelled'
-]
-```
+- `ksf_FA_Woocommerce` — `hooks.php:221`
+- `ksf_FA_Square` — `hooks.php:290`
 
 ---
 
-### `stock_insufficient`
+### `pre_item_delete` / `post_item_write` — Active (FA_ProductAttributes)
+
+Custom hooks patched into `items.php` by `FA_ProductAttributes/src/.../ItemsPhpTabHookPatcher.php`.
+These are standard FA tab hooks, not broadcast — any module can register.
+
+**Emitter:** patched `items.php` (FA_ProductAttributes installer)
+**Listeners:** any module implementing the corresponding methods.
+
+---
+
+### `item_display_tab_headers` / `item_display_tab_content` — Active
+
+Custom item tab UI hooks from FA_ProductAttributes.
+
+---
+
+### `ksf_crud_event` — Active (generic broadcast)
+
+Generic CRUD lifecycle broadcast fired by `CrudEventEmitterTrait` alongside
+specific events (`item_created`, etc.). Payload: `action`, `module`,
+`record_type`, `record_id`, `data`.
+
+**Emitter:** `ksf_FA_Common` — `src/Traits/CrudEventEmitterTrait.php:59`
+**Listeners:** any module via `hook_invoke_all('ksf_crud_event', $data)`.
+
+---
+
+## 2. Stock Reservation Events
+
+### `stock_reservation_insufficient` — Active
+
+Reservation failed (stock below requested qty).
+
+**Emitter:** `ksf_FA_StockReservations` — `src/.../SalesOrderReservationHandler.php:389`
+**Listeners:**
+- `ksf_FA_SuggestedPurchaseOrder` — `hooks.php:155`
+- `ksf_FA_StockTurnover` — `hooks.php:128`
+
+---
+
+### `stock_turnover_data` — Active
+
+Turnover metrics broadcast (nightly recalc).
+
+**Emitter:** `ksf_FA_StockTurnover` — `hooks.php:116`
+**Listeners:**
+- `ksf_FA_StockTurnover` — `hooks.php:119` (self-consumer)
+- `ksf_FA_ManufacturerConsolidation` — `hooks.php:121`
+
+---
+
+### `stock_reserved` — Emitter-only
+
+Stock successfully reserved for an order.
+
+**Emitter:** `ksf_FA_StockReservations` — `hooks.php:173`
+**Listeners:** none found in dev tree.
+
+---
+
+### `stock_released` — Emitter-only
+
+Reservation released (fulfilled, voided, cancelled).
+
+**Emitter:** `ksf_FA_StockReservations` — `hooks.php:202`, `hooks.php:226`
+**Listeners:** none found in dev tree.
+
+---
+
+### `stock_insufficient` — Emitter-only
 
 Stock level below threshold during SO creation.
 
-**Emitters:**
-- `ksf_FA_StockReservations`: When SO creation fails stock check
-
-**Listeners:**
-- `ksf_FA_SuggestedPO`: Check lead times, create suggestion
-- `ksf_FA_Teams`: Create salesman followup task
-
-**Payload:**
-```php
-[
-    'module'      => 'ksf_FA_StockReservations',
-    'event'       => 'stock_insufficient',
-    'timestamp'   => '2024-01-15 14:30:00',
-    'so_order_no' => 12345,
-    'items'       => [
-        ['stock_id' => 'SKU-001', 'requested' => 10, 'available' => 3],
-    ],
-]
-```
+**Emitter:** `ksf_FA_StockReservations` — `hooks.php:261`
+**Listeners:** none found in dev tree.
 
 ---
 
-## Purchase Order Events
+## 3. Purchase Order & Import Events
 
-### `suggested_po_created`
+### `order_imported` — Active
 
-A suggested PO was auto-generated.
+External order (WC/Square) imported into FA.
 
 **Emitters:**
-- `ksf_FA_SuggestedPO`: After nightly recalc or stock insufficient trigger
+- `ksf_FA_Woocommerce` — `src/.../OrderExporter.php:261`
+- `ksf_FA_Square` — `src/Services/ImportService.php:566`
 
 **Listeners:**
-- `ksf_FA_Teams`: Create purchasing task
-
-**Payload:**
-```php
-[
-    'module'         => 'ksf_FA_SuggestedPO',
-    'event'          => 'suggested_po_created',
-    'timestamp'      => '2024-01-15 14:30:00',
-    'suggestion_id'  => 789,
-    'supplier_id'    => 42,
-    'items'          => [
-        ['stock_id' => 'SKU-001', 'qty' => 100, 'unit_cost' => 5.99],
-    ],
-    'reason'         => 'stock_insufficient',  // or 'lead_time_coverage', 'moq_gap'
-    'needed_by'      => '2024-02-15',
-    'order_by'       => '2024-02-01',
-]
-```
+- `ksf_FA_ProjectManagement` — `hooks.php:277`
+- `ksf_FA_HRM` — `hooks.php:493`
 
 ---
 
-### `suggested_po_approved`
+### `po_tracking_data` — Active
 
-A suggested PO was approved by user.
+PO tracking metrics broadcast (nightly recalc).
 
-**Emitters:**
-- `ksf_FA_SuggestedPO`: When user approves suggestion
-
+**Emitter:** `ksf_FA_PurchaseOrderTracking` — `hooks.php:106`
 **Listeners:**
-- `ksf_FA_Teams`: Create submission task
-
-**Payload:**
-```php
-[
-    'module'        => 'ksf_FA_SuggestedPO',
-    'event'         => 'suggested_po_approved',
-    'timestamp'      => '2024-01-15 14:30:00',
-    'suggestion_id' => 789,
-    'supplier_id'   => 42,
-    'approved_by'   => 15,  // user_id
-]
-```
+- `ksf_FA_PurchaseOrderTracking` — `hooks.php:109` (self-consumer)
+- `ksf_FA_ManufacturerConsolidation` — `hooks.php:130`
 
 ---
 
-### `po_created`
+### `suggested_po_approved` — Listener-only
 
-A PO was created (manual or from suggestion).
-
-**Emitters:**
-- `ksf_FA_SuggestedPO`: When suggestion converted to PO or manual PO created
+Listener exists but no emitter verified.
 
 **Listeners:**
-- `ksf_FA_Teams`: Create receiving task (warehouse) + AP task
-- `ksf_FA_Quality`: Queue QA check
-
-**Payload:**
-```php
-[
-    'module'       => 'ksf_FA_SuggestedPO',
-    'event'        => 'po_created',
-    'timestamp'    => '2024-01-15 14:30:00',
-    'po_number'    => 'PO/2024/00123',
-    'supplier_id'  => 42,
-    'suggestion_id' => 789,  // null if manual
-    'created_by'   => 'system',  // or user_id
-]
-```
+- `ksf_FA_ManufacturerConsolidation` — `hooks.php:112`
 
 ---
 
-### `grn_received`
+### `consolidation_data` — Emitter-only
 
-Goods received against a PO.
+Manufacturer consolidation metrics broadcast.
 
-**Emitters:**
-- `ksf_FA_PurchaseOrderTracking`: When GRN posted
-
-**Listeners:**
-- `ksf_FA_Teams`: Create put-away task (warehouse)
-- `ksf_FA_Quality`: Queue QA inspection
-
-**Payload:**
-```php
-[
-    'module'      => 'ksf_FA_PurchaseOrderTracking',
-    'event'       => 'grn_received',
-    'timestamp'   => '2024-01-15 14:30:00',
-    'po_number'   => 'PO/2024/00123',
-    'grn_number'  => 'GRN/2024/00056',
-    'supplier_id' => 42,
-    'items'       => [
-        ['stock_id' => 'SKU-001', 'qty_received' => 100],
-    ],
-]
-```
+**Emitter:** `ksf_FA_ManufacturerConsolidation` — `hooks.php:109`
+**Listeners:** none found.
 
 ---
 
-## Sales Order Events
+### `consolidation_suggested` — Emitter-only
 
-### `so_created`
+Consolidation recommendations generated.
 
-A sales order was created.
-
-**Emitters:**
-- `ksf_FA_StockReservations`: After successful stock reservation
-
-**Listeners:**
-- `ksf_FA_Teams`: Create confirm-with-customer task (if delivery date future)
-
-**Payload:**
-```php
-[
-    'module'      => 'ksf_FA_StockReservations',
-    'event'       => 'so_created',
-    'timestamp'   => '2024-01-15 14:30:00',
-    'so_order_no' => 12345,
-    'customer_id' => 67,
-    'items'       => [...],
-    'delivery_date' => '2024-02-15',
-]
-```
+**Emitter:** `ksf_FA_ManufacturerConsolidation` — `hooks.php:148`
+**Listeners:** none found.
 
 ---
 
-### `so_delivered`
+### `upgrade_module` — Active
 
-A sales order was delivered.
+Module upgrade notification (ksf_fa_downloader collects).
 
-**Emitters:**
-- `ksf_FA_StockReservations`: On ST_CUSTDELIVERY
-
-**Listeners:**
-- `ksf_FA_Teams`: Create AR task for invoicing
-
-**Payload:**
-```php
-[
-    'module'       => 'ksf_FA_StockReservations',
-    'event'        => 'so_delivered',
-    'timestamp'    => '2024-01-15 14:30:00',
-    'so_order_no'  => 12345,
-    'delivery_no'  => 'DO/2024/00089',
-    'items'        => [...],
-]
-```
+**Emitter:** any module calling `hook_invoke_all('upgrade_module', $data)`
+**Listener:** `ksf_fa_downloader` — `hooks.php:121`
 
 ---
 
-### `so_invoiced`
+### Planned: `suggested_po_created`, `grn_received`, `po_created`
 
-A sales order was invoiced.
-
-**Emitters:**
-- `ksf_FA_StockReservations`: On ST_SALESINVOICE
-
-**Listeners:**
-- `ksf_FA_Teams`: Mark AR task complete, create collection followup if needed
-
-**Payload:**
-```php
-[
-    'module'      => 'ksf_FA_StockReservations',
-    'event'       => 'so_invoiced',
-    'timestamp'   => '2024-01-15 14:30:00',
-    'so_order_no' => 12345,
-    'invoice_no' => 'INV/2024/00123',
-    'total'      => 1599.99,
-]
-```
+Designed in `ProjectDcs/Event-Driven Architecture.md` and per-module docs.
+**No emitter code exists yet.** `ksf_FA_PurchaseOrderTracking` has listener
+methods for `grn_received` and `po_created` (`hooks.php:118`, `hooks.php:124`)
+but no module calls `hook_invoke_all('grn_received')` or
+`hook_invoke_all('po_created')`.
 
 ---
 
-## Quality Events
+### `ksf_event_closed` — Planned (BR-007, design approved)
 
-### `quality_issue_created`
+Broadcast fired by Calendar AFTER an attendance/work event transitions to
+`closed` (committed). Payload = the canonical EventClosedDto (event_id, title,
+event_type, location, started_at, closed_at, user_id, project_id?, task_id?,
+sales_order_id?, linked_entities[], attendee_emails[], closed_by). Re-close is a
+no-op. Contract: FR-CAL-007-001/002, ARCH-007-event-close-workflow-design.md.
 
-A quality issue/8D was logged.
-
-**Emitters:**
-- `ksf_FA_Quality`: When issue created
-
-**Listeners:**
-- `ksf_FA_Teams`: Create quality team task
-
-**Payload:**
-```php
-[
-    'module'      => 'ksf_FA_Quality',
-    'event'       => 'quality_issue_created',
-    'timestamp'   => '2024-01-15 14:30:00',
-    'issue_id'    => 45,
-    'stock_id'    => 'SKU-001',
-    'po_number'   => 'PO/2024/00123',  // optional
-    'so_order_no' => 12345,  // optional
-    'severity'    => 'major',  // or 'minor', 'critical'
-]
-```
+**Emitter:** ksf_FA_Calendar (to implement per FR-CAL-007-002)
+**Listeners (to implement):**
+- `ksf_FA_Timesheets` — bulk member time (FR-TIME-007-002/003)
+- `ksf_FA_TravelExpense` — new-or-existing expense (FR-EXPENSE-007-001)
+- `ksf_FA_ProjectManagement` — task time-window close (FR-PM-007-002)
+- `ksf_FA_Warehouse` — pick-ready re-broadcast on sales-order hybrids (FR-WH-007-001)
 
 ---
 
-## Task Events
+### `ksf_event_classify_attendees` — Planned (BR-007, design approved)
 
-### `task_created`
+Read-only request on the close flow: any subscriber asks it to partition the
+DTO's `attendee_emails[]` into `member` vs `external`. Responders (PM, HRM,
+CRM, Teams/Warehouse) append only emails they resolve in their OWN identity
+space; caller aggregates (member wins; unclassified external; empty = all
+member). Contract: FR-CAL-007-003, ARCH-007-event-close-workflow-design.md.
 
-A task was created in Teams.
-
-**Emitters:**
-- `ksf_FA_Teams`: After creating any task
-
-**Listeners:**
-- (informational only — other modules may listen for task lifecycle)
-
-**Payload:**
-```php
-[
-    'module'       => 'ksf_FA_Teams',
-    'event'        => 'task_created',
-    'timestamp'    => '2024-01-15 14:30:00',
-    'task_id'      => 456,
-    'team_type'    => 'purchasing',
-    'title'        => 'Review PO for SKU-001',
-    'description'  => 'Suggested PO #789 needs approval',
-    'due_date'     => '2024-02-01',
-    'related'      => [
-        'type' => 'suggested_po',
-        'id'   => 789,
-    ],
-]
-```
+**Callers (to implement):** ksf_FA_Timesheets subscriber (FR-TIME-007-002/003)
+**Responders (to implement):** ksf_FA_ProjectManagement (FR-PM-007-001),
+`ksf_FA_HRM` (FR-HRM-007-001), `ksf_FA_CRM` (FR-CRM-007-001)
 
 ---
 
-### `task_completed`
+## 4. Import Staging Pipeline
 
-A task was marked complete.
+Hook-first request/response pattern for the ISP framework.
 
-**Emitters:**
-- `ksf_FA_Teams`: When task status changed to complete
+**Emitters:** `ksf_FA_ImportStagingProcessing` (`hooks.php`, `StagingService.php`,
+`ProcessingPipeline.php`), `ksf_FA_Square` / `ksf_FA_Woocommerce`
+(`IsuStagingGateway.php`)
+**Listener:** `ksf_FA_ImportStagingProcessing_UI` (`hooks.php`)
 
-**Listeners:**
-- (informational — for audit trail)
+| Event | Direction | Source |
+|-------|-----------|--------|
+| `SEARCH_CUSTOMER` | request | ISP `StagingService.php:462` |
+| `GET_PAYMENT` | request | ISP `StagingService.php:507` |
+| `CREATE_CUSTOMER` | request | ISP `ProcessingPipeline.php:401` |
+| `CREATE_PAYMENT` | request | ISP `ProcessingPipeline.php:416` |
+| `CREATE_SALES_INVOICE` | request | ISP `ProcessingPipeline.php:430` |
+| `PROCESS_STAGING` | request | ISP `hooks.php:332` |
+| `STAGE_CUSTOMER` | request | ISP `hooks.php:374` |
+| `STAGE_TRANSACTION` | request | ISP `hooks.php:415` |
+| `STAGE_PAYMENT` | request | ISP `hooks.php:457` |
+| `STAGE_ENTITY` | request | ISP_UI → Square/Woocommerce `IsuStagingGateway.php` |
+| `STAGING_EXISTS` | request | ISP_UI → Square `IsuStagingGateway.php:46` |
 
-**Payload:**
-```php
-[
-    'module'     => 'ksf_FA_Teams',
-    'event'      => 'task_completed',
-    'timestamp' => '2024-01-15 14:30:00',
-    'task_id'    => 456,
-    'completed_by' => 15,  // user_id
-]
-```
+### 4.1 Payload & by-reference contract (binding, 2026-10)
+
+`STAGE_ENTITY` and `STAGING_EXISTS` are **DTO-based**: the caller passes a
+`Ksfraser\StagingDto\StagingEntity` / `StagingExistsQuery` **by reference**, and
+the responder **replaces `$data` with a response array**.
+
+This is not optional — FA passes `$data` by reference, and `StagingEntity`
+implements `JsonSerializable`, **not** `ArrayAccess`. A responder that receives
+the DTO and writes `$data['result'] = ...` (or `$data['error'] = ...` on the
+error paths) fatals with `Cannot use object of type ... as array`. This broke
+`STAGE_ENTITY` and `STAGING_EXISTS` on **every** path, so Square order staging
+could never work; both were fixed in ISP `hooks.php` by replacing `$data`
+wholesale instead of writing offsets.
+
+| | Direction | Type | Reply |
+|---|---|---|---|
+| `STAGE_ENTITY` | request | `StagingEntity` DTO | `$data = ['success'=>bool,'result'=>array]` |
+| `STAGING_EXISTS` | request | `StagingExistsQuery` DTO | `$data = ['success'=>bool,'result'=>array]` |
+| `STAGE_CUSTOMER` / `_TRANSACTION` / `_PAYMENT` | request | nested array | legacy shape — migrate to DTO |
+
+Replies are `StagingResult::toArray()` plus `_event` / `_module` / `_dto_type`
+tags. **Callers must re-check `is_array($data)` after the call** — if no
+responder ran (module inactive) `$data` is still the DTO, and that must be
+treated as *no responder*, never as success. Full rationale and code shape:
+`AGENTS_ARCH.md` §11.2.
 
 ---
 
-## Module-to-Module Query Events
+## 5. Calendar & Scheduling Events
 
-### `stock_level_query`
+### `calendar_entry_create` / `_update` / `_delete` / `_entries_query` — Active
 
-Request current stock level for an item.
+Calendar CRUD via REST API.
 
-**Emitters:**
-- Any module needing stock level
-
+**Emitters (hook_invoke_first):** `ksf_FA_API` — `src/.../CalendarController.php:153/193/225/76`
 **Listeners:**
-- `ksf_FA_StockReservations`: Returns available qty
+- `ksf_FA_Calendar` — `hooks.php:121/146/171/197`
 
-**Payload (request):**
-```php
-[
-    'module'    => 'ksf_FA_SuggestedPO',
-    'event'     => 'stock_level_query',
-    'stock_id'  => 'SKU-001',
-]
-```
+---
 
-**Payload (response via $data):**
-```php
-[
-    'available' => 150,
-    'on_order'   => 50,
-    'location'   => 'MAIN',
-]
-```
+### `calendar_register_source_types` / `_menu_items` — Active
+
+Extension registration for calendar sources/menus.
+
+**Emitter:** `ksf_FA_Common` — `src/ExtensionRegistry/ExtensionRegistry.php:62-63`
+**Listeners:**
+- `ksf_FA_Calendar` — `hooks.php:539` (collects registrations)
+
+---
+
+### `calendar_scheduling_context` — Emitter-only
+
+Scheduling context broadcast.
+
+**Emitter:** `ksf_FA_Calendar` — `src/.../SchedulingCalculator.php:34`
+**Listeners:** none found.
+
+---
+
+### `calendar_invitee_contact_types` — Emitter-only
+
+**Emitter:** `ksf_FA_Calendar` — `FA_Cal_Module.php:751`
+**Listeners:** `ksf_FA_Calendar` `hooks.php:236` (self)
+
+---
+
+### `calendar_individual_status_changed` — Emitter-only
+
+**Emitter:** `ksf_FA_Calendar` — `FA_Cal_Module.php:1127`
+**Listeners:** none found.
+
+---
+
+### `calendar_billable_entry_completed` — Emitter-only
+
+**Emitter:** `ksf_FA_Calendar` — `FA_Cal_Module.php:1325`
+**Listeners:** none found.
+
+---
+
+### `mail_send_ical` — Active
+
+iCal attachment dispatch.
+
+**Emitter:** `ksf_FA_Calendar` — `cal_ical.php:481`
+**Listener:** `ksf_FA_Mail` — `hooks.php:194/211`
+
+---
+
+### `reminder_dispatch_popup` / `_email` — Active
+
+Reminder delivery (popup/email).
+
+**Emitter:** any scheduled reminder trigger
+**Listener:** `ksf_FA_Calendar` — `hooks.php:276` / `hooks.php:325`
+
+---
+
+### `reminder_delivery_methods` — Emitter-only (self-consumer)
+
+**Emitter:** `ksf_FA_Calendar` — `FA_Cal_Module.php:1580`
+**Listener:** `ksf_FA_Calendar` — `hooks.php:255` (self)
+
+---
+
+## 6. Project & Timesheet Events
+
+Emitter-only group — all from `ksf_FA_Timesheets` (`TimesheetService.php`,
+`TimesheetHooks.php`, `TimeEntryService.php`). No cross-module listeners
+found in dev tree.
+
+| Event | Source |
+|-------|--------|
+| `timesheet_submitted` | `TimesheetService.php:220`, `TimesheetHooks.php:45` |
+| `timesheet_approved` | `TimesheetService.php:258`, `TimesheetHooks.php:61` |
+| `timesheet_rejected` | `TimesheetHooks.php:63` |
+| `timesheet_export_payroll` | `TimesheetService.php:259`, `TimesheetHooks.php:74` |
+| `timesheet_check_auto_approve` | `TimesheetService.php:282` |
+| `timesheet_get_week_config` | `TimesheetService.php:137` |
+| `time_entry_added` | `TimesheetService.php:204` |
+| `time_get_billing_rule` | `TimesheetHooks.php:85` (self-consumer: `TimeEntryService.php:91`) |
+| `approval_request` | `TimesheetService.php:228` |
+| `project_check_project_admin` | `TimesheetService.php:335` |
+| `project_activity_validate` | `TimesheetService.php:170` |
+| `project_stage_get_activities` | `TimesheetService.php:124` |
+| `project_get_current_stage` | `TimesheetService.php:107` |
+| `orgchart_get_reports` | `TimesheetService.php:88` |
+
+---
+
+## 7. Team & User Lifecycle Events
+
+Emitter-only group.
+
+| Event | Source |
+|-------|--------|
+| `team_created` | `ksf_FA_Teams` `hooks.php:181` |
+| `team_updated` | `ksf_FA_Teams` `hooks.php:202` |
+| `team_deleted` | `ksf_FA_Teams` `hooks.php:221` |
+| `user_team_assigned` | `ksf_FA_Teams` `hooks.php:244` |
+| `user_team_unassigned` | `ksf_FA_Teams` `hooks.php:265` |
+| `user_provisioned` | `ksf_FA_RBAC` `hooks.php:213` |
+| `user_updated` | `ksf_FA_RBAC` `hooks.php:234` |
+| `user_deactivated` | `ksf_FA_RBAC` `hooks.php:253` |
+
+---
+
+## 8. Cross-Module Config Seam
+
+### `ksf_get_value` / `ksf_get_values` / `ksf_set_value` — Active
+
+Key-value config read/write via `HookQueryProviderTrait`.
+`hook_invoke_first('ksf_get_value', $key)` returns first provider's result.
+`hook_invoke_all` for set/values.
+
+**Providers:** `ksf_FA_RBAC` (`hooks.php:259`), `ksf_FA_Mail` (`hooks.php:328`),
+`ksf_FA_Common` (`HookQueryProviderTrait`)
+**Consumers:** any module using the trait.
+
+---
+
+## 9. Authorization Events
+
+### `authorize` — Active (hook_invoke_first)
+
+CRUD access check. Returns `true`/`false`/`null`.
+
+**Emitters:** `ksf_FA_CRM` (`reporting/rep_customer_*.php`),
+`ksf_FA_ImportStagingProcessing` (`hooks.php:820`)
+**Listener:** `ksf_FA_RBAC` — `hooks.php:337`
+
+---
+
+### `filterRecordList` — Active
+
+Record-level list filtering.
+
+**Emitter:** any module via `RbacGateway`
+**Listener:** `ksf_FA_RBAC` — `hooks.php:465`
+
+---
+
+### `gpg_encrypt` — Active
+
+GPG encryption dispatch.
+
+**Emitter:** `ksf_GPG` — `src/Traits/GPGEncryptionTrait.php:284`
+**Listener:** `ksf_FA_GPG`
+
+---
+
+### `gpg_register_portal_key` — Emitter-only
+
+**Emitter:** `ksf_FA_GPG` — `pages/portal_key_register.php:46`,
+`pages/ess_key_register.php:46`
+**Listeners:** none found.
+
+---
+
+## 10. Logging
+
+### `ksf_log` — Active
+
+Centralized logging dispatch.
+
+**Emitter:** `ksf_FA_Common` — `src/logging_functions.php:58`
+**Listener:** `ksf_FA_Logging` — `hooks.php:74`
+
+---
+
+## 11. Attached to Dev Tree Only
+
+Events from `ksf_FA_Users`, `ksf_FA_Contacts`, `ksf_FA_Employee`.
+These modules exist only under `ksf_Infrastructure/fa_modules/` (deployed-only)
+and have no dev tree source — events cannot be verified.
+
+**Planned events per deployed-only modules:**
+- `user_create` (ksf_FA_Users) — no emitter in dev tree
+- `add_contact` / `contact_create` (ksf_FA_Contacts) — no emitter in dev tree
 
 ---
 
 ## Event Lifecycle Summary
 
-| Event | Emitted When | Primary Listener |
-|-------|-------------|------------------|
-| `stock_reserved` | SO created, stock available | Teams (sales followup) |
-| `stock_insufficient` | SO creation fails stock check | SuggestedPO, Teams |
-| `stock_released` | SO voided/delivered | SuggestedPO, Teams |
-| `suggested_po_created` | Auto-suggestion generated | Teams (purchasing task) |
-| `suggested_po_approved` | User approves suggestion | Teams |
-| `po_created` | PO submitted to vendor | Teams (warehouse), Quality |
-| `grn_received` | Goods received | Teams (put-away), Quality |
-| `so_created` | Sales order created | Teams (confirm with customer) |
-| `so_delivered` | Delivery completed | Teams (AR invoicing) |
-| `so_invoiced` | Invoice posted | Teams (collection) |
-| `quality_issue_created` | Quality issue logged | Teams (quality team) |
-| `task_created` | Task created | (audit trail) |
-| `task_completed` | Task completed | (audit trail) |
+| Event | Status | Emitter | Listener(s) |
+|-------|--------|---------|-------------|
+| `item_created` | **Active** | ksf_FA_Common | Woocommerce, Square |
+| `item_updated` | **Active** | ksf_FA_Common | Woocommerce, Square |
+| `ksf_crud_event` | **Active** | Traits/CrudEventEmitterTrait | (generic) |
+| `stock_reservation_insufficient` | **Active** | StockReservations | SuggestedPO, StockTurnover |
+| `stock_turnover_data` | **Active** | StockTurnover | StockTurnover, ManufacturerConsolidation |
+| `stock_reserved` | Emitter-only | StockReservations | — |
+| `stock_released` | Emitter-only | StockReservations | — |
+| `stock_insufficient` | Emitter-only | StockReservations | — |
+| `order_imported` | **Active** | Woocommerce, Square | ProjectManagement, HRM |
+| `po_tracking_data` | **Active** | PurchaseOrderTracking | PurchaseOrderTracking, ManufacturerConsolidation |
+| `upgrade_module` | **Active** | (any) | ksf_fa_downloader |
+| `mail_send_ical` | **Active** | Calendar | Mail |
+| `calendar_entry_*` | **Active** | ksf_FA_API | Calendar |
+| `authorize` | **Active** | (various) | RBAC |
+| `filterRecordList` | **Active** | (various) | RBAC |
+| `ksf_get_value` | **Active** | (any) | RBAC, Mail, Traits |
+| `ksf_set_value` | **Active** | (any) | RBAC, Traits |
+| `ksf_log` | **Active** | ksf_FA_Common | Logging |
+| `gpg_encrypt` | **Active** | ksf_GPG | GPG |
+| `timesheet_*` | Emitter-only | Timesheets | — |
+| `team_*` | Emitter-only | Teams | — |
+| `user_*` (lifecycle) | Emitter-only | RBAC | — |
+| `suggested_po_created` | Planned | — | — |
+| `grn_received` | Planned | — | — |
+| `po_created` | Planned | — | — |
+| `ksf_event_closed` | **Planned** | Calendar (BR-007) | Timesheets, TravelExpense, PM, Warehouse |
+| `ksf_event_classify_attendees` | **Planned** | (subscriber callers, BR-007) | PM, HRM, CRM |
+| `ksf_wh_pick_ready` | **Active** | Warehouse subscriber (`ksf_event_closed`) | (pick flow) |
 
 ---
 
-*Document Version: 1.0.0*
+*Document Version: 2.0.0 — verified against dev tree 2026-09-14*
 *Maintained in: ~/Documents/EVENTS.md*
 *Cross-reference: ProjectDcs/Event-Driven Architecture.md*
