@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
  * The legacy includes (crm_db.inc, crm_ui.inc, crm_relationships_db.inc), the
  * pages and the reports addressed tables that exist nowhere:
  *
- *   0_fa_crm_*      the module's own tables are 0_ksf_crm_*; the 0_fa_crm_*
+ *   fa_crm_*        the module's own tables are 0_ksf_crm_*; the fa_crm_*
  *                   names were never created
  *   0_crm_*         a bare 0_crm_<name> is not a schema table either
  *   0_custcontacts  a FrontAccounting 2.1 table
@@ -28,13 +28,13 @@ use PHPUnit\Framework\TestCase;
 class LegacyTableNameTest extends TestCase
 {
     /**
-     * Directories whose files must not build a 0_fa_crm_* / 0_crm_* table
+     * Directories whose files must not build an fa_crm_* / 0_crm_* table
      * name.
      */
     private const SCANNED_DIRS = ['includes', 'pages', 'reporting'];
 
     /**
-     * The only place a legacy 0_fa_crm_* name may still appear: the
+     * The only place a legacy fa_crm_* name may still appear: the
      * retirement list and the guarded handover of the CRM's email accounts to
      * ksf_FA_EmailManager, both of which deliberately address the OLD table
      * to migrate it away.
@@ -51,7 +51,7 @@ class LegacyTableNameTest extends TestCase
         $this->assertDoesNotMatchRegularExpression(
             '/TB_PREF\s*\.\s*"fa_crm_/',
             $contents,
-            $file . ' builds a 0_fa_crm_* table name: no schema creates one'
+            $file . ' builds an fa_crm_* table name: no schema creates one'
         );
 
         $this->assertDoesNotMatchRegularExpression(

@@ -2454,8 +2454,8 @@ function create_project_from_opportunity($opportunity_id, $project_name = null)
         $project_name = $opp['opportunity_name'] . ' Project';
     }
 
-    // Insert into fa_pm_projects if the table exists
-    $sql = "INSERT INTO " . TB_PREF . "fa_pm_projects
+    // Insert into ksf_projectmanagement_projects if the table exists
+    $sql = "INSERT INTO " . TB_PREF . "ksf_projectmanagement_projects
         (project_id, name, description, customer_id, status, start_date, lead_source)
     VALUES (
         " . db_escape('PRJ-' . $opportunity_id) . ",

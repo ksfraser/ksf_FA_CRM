@@ -132,7 +132,8 @@ class hooks_ksf_FA_CRM extends hooks {
 
         if (!$check_only && $ok) {
             // Order matters: the handover copies mailboxes out of the retired
-            // 0_fa_crm_email_accounts before retire_misnamed_tables() retires it.
+            // the legacy fa_crm_email_accounts table before retire_misnamed_tables()
+            // retires it.
             $this->migrate_email_accounts();
             $this->register_contact_types();
             $this->retire_misnamed_tables($company);
@@ -143,7 +144,7 @@ class hooks_ksf_FA_CRM extends hooks {
 
     /**
      * Run sql/upgrade_2.4.3-1.sql for installations that still hold misnamed
-     * 0_fa_crm_* tables.
+     * fa_crm_* tables.
      *
      * The upgrade file's DROP statements were removed once every installation
      * had been cut over, so this is now a belt-and-braces no-op that only fires
@@ -201,7 +202,7 @@ class hooks_ksf_FA_CRM extends hooks {
      * Hand CRM email accounts over to ksf_FA_EmailManager (ksfraser/ksf_FA_CRM#25).
      *
      * EmailManager owns the mailbox-of-record; the CRM's own
-     * 0_fa_crm_email_accounts is retired. The INSERT is guarded by NOT EXISTS on
+     * the legacy fa_crm_email_accounts table is retired. The INSERT is guarded by NOT EXISTS on
      * email_address, so it is idempotent and self-healing: re-running copies only
      * accounts EmailManager has not already taken. No marker table is needed.
      *

@@ -10,7 +10,8 @@ use ReflectionClass;
 /**
  * Locks the CRM's table-name convention: `TB_PREF . 'ksf_crm_*'`.
  *
- * The repositories previously named `fa_crm_*`, which produced `0_fa_crm_*`
+ * The repositories previously named `fa_crm_*`, which produced the
+ * fa_-prefixed table names
  * — tables that do not exist. Because the reads swallowed the db error and
  * returned an empty row set, every list tab rendered "no records" and the
  * defect was invisible in the UI and to the other tests. These assertions
@@ -70,7 +71,7 @@ class RepositoryTableNameTest extends TestCase
      * Guards the naming convention itself, independent of any one repository.
      *
      * Any `fa_crm_` literal anywhere in the source tree yields
-     * `0_fa_crm_*`, which is not a schema table.
+     * `fa_crm_*`, which is not a schema table.
      */
     public function testNoRepositoryDeclaresTheNonExistentFaCrmPrefix(): void
     {
@@ -85,7 +86,7 @@ class RepositoryTableNameTest extends TestCase
         $this->assertSame(
             [],
             $offenders,
-            'these files still build 0_fa_crm_* table names: ' . implode(', ', $offenders)
+            'these files still build fa_crm_* table names: ' . implode(', ', $offenders)
         );
     }
 

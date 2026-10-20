@@ -1,10 +1,10 @@
 -- ============================================================================
 -- ksf_FA_CRM upgrade — table prefix correction (COMPLETED)
 -- ============================================================================
--- Module tables were created as 0_fa_crm_* which did not match the documented
+-- Module tables were created with an fa_crm_* prefix which did not match the documented
 -- convention in AGENTS.md ("SQL tables: 0_ksf_<tablename>"). The 0_fa_ prefix
 -- also read as "FrontAccounting's own table", which is what let
--- 0_fa_crm_contacts be mistaken for a core table alongside the real
+-- fa_crm_contacts be mistaken for a core table alongside the real
 -- crm_persons/crm_contacts pair (issue #14).
 --
 -- The per-table install files now create 0_ksf_crm_*.
@@ -13,7 +13,7 @@
 -- removed. Every installation has been cut over, verified on the integration
 -- box: activating EmailManager then ksf_FA_CRM creates the 19 0_ksf_crm_*
 -- tables, hands the #25 mailbox row over to 0_ksf_em_accounts, and leaves no
--- 0_fa_crm_* table behind. Re-activation is a no-op.
+-- fa_crm_* table behind. Re-activation is a no-op.
 --
 -- This file is intentionally empty of statements. It is retained so the
 -- 2.4.3-1 upgrade step remains a recorded, already-applied no-op rather than
