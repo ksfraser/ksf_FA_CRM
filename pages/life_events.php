@@ -102,7 +102,7 @@ table_header($th);
 
 $sql = "SELECT e.*,
     CONCAT(p.first_name, ' ', p.last_name) AS person_name
-    FROM " . TB_PREF . "fa_crm_life_events e
+    FROM " . TB_PREF . "ksf_crm_life_events e
     LEFT JOIN " . TB_PREF . "crm_persons p ON e.person_id = p.id
     ORDER BY e.event_date, e.id";
 

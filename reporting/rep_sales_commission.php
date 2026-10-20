@@ -60,7 +60,7 @@ function get_commission_details($salesman_code, $from_date, $to_date)
         s.commission_rate,
         (dt.ov_amount + dt.ov_gst + dt.ov_freight + dt.ov_discount) * s.commission_rate / 100 as commission
         FROM " . TB_PREF . "debtor_trans dt
-        INNER JOIN " . TB_PREF . "debtor_master dm ON dt.debtor_no = dm.debtor_no
+        INNER JOIN " . TB_PREF . "debtors_master dm ON dt.debtor_no = dm.debtor_no
         INNER JOIN " . TB_PREF . "cust_branch cb ON dt.debtor_no = cb.debtor_no
         INNER JOIN " . TB_PREF . "salesman s ON cb.salesman = s.salesman_code
         WHERE dt.type = " . ST_SALESINVOICE . "

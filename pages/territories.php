@@ -93,7 +93,7 @@ echo '<br>';
 
 if ($selected_id) {
 	// Editing existing territory
-	$result = db_query("SELECT * FROM " . TB_PREF . "crm_territories WHERE id = " . (int)$selected_id);
+	$result = db_query("SELECT * FROM " . TB_PREF . "ksf_crm_territories WHERE id = " . (int)$selected_id);
 	$myrow = db_fetch($result);
 
 	$_POST['territory_name'] = $myrow['territory_name'];
@@ -129,7 +129,7 @@ if (get_post('show_inactive') == 1)
 else
 	$show_inactive = 0;
 
-$sql = "SELECT * FROM " . TB_PREF . "crm_territories";
+$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_territories";
 if (!$show_inactive)
 	$sql .= " WHERE inactive = 0";
 $sql .= " ORDER BY territory_name";

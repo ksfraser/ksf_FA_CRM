@@ -26,7 +26,7 @@ function display_communications_table($debtor_no)
 	table_header($th);
 
 	$k = 0;
-	while ($comm = db_fetch($communications)) {
+	foreach ($communications as $comm) {
 		alt_table_row_color($k);
 
 		$date = sql2date($comm['created_at']);
@@ -78,10 +78,16 @@ function display_communication_form($debtor_no, $communication_id = null)
 	start_table(TABLESTYLE2);
 
 	// Get customer contacts for dropdown
+	// The contacts are FA core's persons, reached through the shared
+	// contact resolver; the option value is FA's contact relation id.
 	$contacts = get_customer_contacts($debtor_no);
 	$contact_options = array('' => _("General"));
-	while ($contact = db_fetch($contacts)) {
-		$contact_options[$contact['id']] = $contact['first_name'] . ' ' . $contact['last_name'];
+	foreach ($contacts as $contact) {
+		$contact_id = $contact->getContactId();
+		if ($contact_id === null) {
+			continue;
+		}
+		$contact_options[$contact_id] = trim($contact->getName() . ' ' . $contact->getName2());
 	}
 
 	table_section_title(_("Communication Details"));

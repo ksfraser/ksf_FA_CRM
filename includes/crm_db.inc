@@ -40,12 +40,12 @@ function crm_dispatch_event(string $eventName, $eventData = null): void
 function update_customer_crm_data($customer_id, $crm_data)
 {
 	// Check if CRM record exists
-	$sql = "SELECT id FROM " . TB_PREF . "fa_crm_customers WHERE debtor_no = " . db_escape($customer_id);
+	$sql = "SELECT id FROM " . TB_PREF . "ksf_crm_customers WHERE debtor_no = " . db_escape($customer_id);
 	$result = db_query($sql);
 	$exists = db_num_rows($result) > 0;
 
 	if ($exists) {
-		$sql = "UPDATE " . TB_PREF . "fa_crm_customers SET
+		$sql = "UPDATE " . TB_PREF . "ksf_crm_customers SET
 			customer_type_id = " . db_escape($crm_data['customer_type_id']) . ",
 			customer_segment_id = " . db_escape($crm_data['customer_segment_id']) . ",
 			territory_id = " . db_escape($crm_data['territory_id']) . ",
@@ -67,7 +67,7 @@ function update_customer_crm_data($customer_id, $crm_data)
 			payment_reliability = " . (float)$crm_data['payment_reliability'] . "
 		WHERE debtor_no = " . db_escape($customer_id);
 	} else {
-		$sql = "INSERT INTO " . TB_PREF . "fa_crm_customers
+		$sql = "INSERT INTO " . TB_PREF . "ksf_crm_customers
 			(debtor_no, customer_type_id, customer_segment_id, territory_id, customer_since,
 			website, industry, employee_count, annual_revenue, parent_company, latitude, longitude,
 			edi_enabled, marketing_opt_out, preferred_contact_method, last_contact_date,
@@ -89,130 +89,327 @@ function update_customer_crm_data($customer_id, $crm_data)
 
 function get_customer_crm_data($customer_id)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "fa_crm_customers WHERE debtor_no = " . db_escape($customer_id);
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_customers WHERE debtor_no = " . db_escape($customer_id);
 	$result = db_query($sql, "Could not get customer CRM data");
 	return db_fetch($result);
 }
 
 function delete_customer_crm_data($customer_id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "fa_crm_customers WHERE debtor_no = " . db_escape($customer_id);
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_customers WHERE debtor_no = " . db_escape($customer_id);
 	db_query($sql, "Could not delete customer CRM data");
 }
 
 function get_customer_type($id)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "fa_crm_customer_types WHERE id = " . (int)$id;
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_customer_types WHERE id = " . (int)$id;
 	$result = db_query($sql, "Could not get customer type");
 	return db_fetch($result);
 }
 
 // ============================================================================
 // CONTACT MANAGEMENT FUNCTIONS
+//
+// A contact is FA core's PERSON (0_crm_persons) and the RELATION that links
+// that person to an entity (0_crm_contacts). There is no CRM-owned contact
+// table: the estate has exactly ONE contact registry and it is FA core's
+// (AGENTS_ARCH.md 12.2). The module's own 0_ksf_crm_contacts table is
+// deprecated and is not used.
+//
+// A "contact id" in this module is FA's contact relation id
+// (0_crm_contacts.id), which is what the shared contact resolver hands back
+// as Contact::getContactId() and what the CRM's own tables
+// (communications.contact_id, meeting_attendees.contact_id,
+// contact_accounts.contact_id) therefore hold.
+//
+// FA's native CRM functions are not auto-loaded by includes/main.inc, so a
+// module calling them must include the file itself.
 // ============================================================================
 
+/**
+ * Whether FA's native CRM functions are loaded.
+ *
+ * @return bool
+ */
+function crm_native_functions_loaded(): bool
+{
+	if (function_exists('get_crm_contact')) {
+		return true;
+	}
+
+	$path_to_root = isset($GLOBALS['path_to_root']) ? (string) $GLOBALS['path_to_root'] : '';
+	if ($path_to_root === '') {
+		return false;
+	}
+
+	$file = $path_to_root . '/includes/db/crm_contacts_db.inc';
+	if (!is_file($file)) {
+		return false;
+	}
+
+	include_once $file;
+
+	return function_exists('get_crm_contact');
+}
+
+/**
+ * The shared contact resolver, or null when the package is not installed.
+ *
+ * @return \ksfraser\FrontAccounting\Common\ContactResolver\Contract\ContactResolverInterface|null
+ */
+function crm_contact_resolver(): ?object
+{
+	static $resolver = false;
+
+	if ($resolver !== false) {
+		return $resolver;
+	}
+
+	$autoload = dirname(__DIR__) . '/vendor/autoload.php';
+	if (!file_exists($autoload)) {
+		$resolver = null;
+		return $resolver;
+	}
+
+	require_once $autoload;
+
+	$class = 'ksfraser\\FrontAccounting\\Common\\ContactResolver\\ContactResolver';
+	if (!class_exists($class)) {
+		$resolver = null;
+		return $resolver;
+	}
+
+	$resolver = new $class();
+
+	return $resolver;
+}
+
+/**
+ * The contact CATEGORY ids of a person, so a person update does not wipe
+ * them (update_crm_person() replaces the contact relations wholesale).
+ *
+ * @param int $personId Person id
+ *
+ * @return int[]
+ */
+function crm_person_contact_category_ids(int $personId): array
+{
+	if (!function_exists('get_person_contacts')) {
+		return array();
+	}
+
+	$ids = array();
+	foreach ((array) get_person_contacts($personId) as $row) {
+		$id = is_array($row) ? ($row['id'] ?? null) : $row;
+		if (is_numeric($id)) {
+			$ids[] = (int) $id;
+		}
+	}
+
+	return $ids;
+}
+
+/**
+ * Create a customer contact: a person, linked to the customer.
+ *
+ * @param string $debtor_no  Customer (FA debtor_no)
+ * @param array  $contact_data first_name, last_name, email, phone, mobile,
+ *                          address, notes
+ *
+ * @return int The contact relation id (0_crm_contacts.id), 0 on failure
+ */
 function add_customer_contact($debtor_no, $contact_data)
 {
-	$sql = "INSERT INTO " . TB_PREF . "fa_crm_contacts
-		(debtor_no, contact_role_id, first_name, last_name, title, department,
-		phone, mobile, email, address, notes, is_primary)
-		VALUES (" . db_escape($debtor_no) . ", " . db_escape($contact_data['contact_role_id']) . ",
-			" . db_escape($contact_data['first_name']) . ", " . db_escape($contact_data['last_name']) . ",
-			" . db_escape($contact_data['title']) . ", " . db_escape($contact_data['department']) . ",
-			" . db_escape($contact_data['phone']) . ", " . db_escape($contact_data['mobile']) . ",
-			" . db_escape($contact_data['email']) . ", " . db_escape($contact_data['address']) . ",
-			" . db_escape($contact_data['notes']) . ", " . (int)$contact_data['is_primary'] . ")";
+	if (!crm_native_functions_loaded()) {
+		return 0;
+	}
 
-	db_query($sql, "Could not add customer contact");
-	$contact_id = db_insert_id();
-	
+	$person_id = add_crm_person(
+		isset($contact_data['ref']) ? $contact_data['ref'] : '',
+		isset($contact_data['first_name']) ? $contact_data['first_name'] : '',
+		isset($contact_data['last_name']) ? $contact_data['last_name'] : '',
+		isset($contact_data['address']) ? $contact_data['address'] : '',
+		isset($contact_data['phone']) ? $contact_data['phone'] : '',
+		isset($contact_data['mobile']) ? $contact_data['mobile'] : '',
+		'',
+		isset($contact_data['email']) ? $contact_data['email'] : '',
+		'',
+		isset($contact_data['notes']) ? $contact_data['notes'] : ''
+	);
+
+	if (!$person_id) {
+		return 0;
+	}
+
+	add_crm_contact('customer', 'general', $debtor_no, $person_id);
+	$contact_id = (int) db_insert_id();
+
 	// Dispatch events
 	crm_dispatch_event('crm.contact.created', [
 		'contact_id' => $contact_id,
+		'person_id' => (int) $person_id,
 		'debtor_no' => $debtor_no,
 		'data' => $contact_data,
 	]);
-	crm_dispatch_event('db_postinsert', ['table' => 'fa_crm_contacts', 'id' => $contact_id]);
-	
+	crm_dispatch_event('db_postinsert', ['table' => 'crm_contacts', 'id' => $contact_id]);
+
 	return $contact_id;
 }
 
+/**
+ * Update a customer contact.
+ *
+ * @param int   $contact_id   Contact relation id (0_crm_contacts.id)
+ * @param array $contact_data first_name, last_name, email, phone, mobile,
+ *                           address, notes
+ *
+ * @return void
+ */
 function update_customer_contact($contact_id, $contact_data)
 {
-	$sql = "UPDATE " . TB_PREF . "fa_crm_contacts SET
-		contact_role_id = " . db_escape($contact_data['contact_role_id']) . ",
-		first_name = " . db_escape($contact_data['first_name']) . ",
-		last_name = " . db_escape($contact_data['last_name']) . ",
-		title = " . db_escape($contact_data['title']) . ",
-		department = " . db_escape($contact_data['department']) . ",
-		phone = " . db_escape($contact_data['phone']) . ",
-		mobile = " . db_escape($contact_data['mobile']) . ",
-		email = " . db_escape($contact_data['email']) . ",
-		address = " . db_escape($contact_data['address']) . ",
-		notes = " . db_escape($contact_data['notes']) . ",
-		is_primary = " . (int)$contact_data['is_primary'] . "
-	WHERE id = " . (int)$contact_id;
+	if (!crm_native_functions_loaded()) {
+		return;
+	}
 
-	db_query($sql, "Could not update customer contact");
-	
+	$relation = get_crm_contact((int) $contact_id);
+	if (!is_array($relation) || empty($relation['person_id'])) {
+		return;
+	}
+
+	$person_id = (int) $relation['person_id'];
+
+	update_crm_person(
+		$person_id,
+		isset($relation['ref']) ? $relation['ref'] : '',
+		isset($contact_data['first_name']) ? $contact_data['first_name'] : '',
+		isset($contact_data['last_name']) ? $contact_data['last_name'] : '',
+		isset($contact_data['address']) ? $contact_data['address'] : '',
+		isset($contact_data['phone']) ? $contact_data['phone'] : '',
+		isset($contact_data['mobile']) ? $contact_data['mobile'] : '',
+		isset($relation['fax']) ? $relation['fax'] : '',
+		isset($contact_data['email']) ? $contact_data['email'] : '',
+		isset($relation['lang']) ? $relation['lang'] : '',
+		isset($contact_data['notes']) ? $contact_data['notes'] : '',
+		crm_person_contact_category_ids($person_id)
+	);
+
 	// Dispatch events
 	crm_dispatch_event('crm.contact.updated', [
-		'contact_id' => $contact_id,
+		'contact_id' => (int) $contact_id,
+		'person_id' => $person_id,
 		'data' => $contact_data,
 	]);
-	crm_dispatch_event('db_postupdate', ['table' => 'fa_crm_contacts', 'id' => $contact_id]);
+	crm_dispatch_event('db_postupdate', ['table' => 'crm_contacts', 'id' => (int) $contact_id]);
 }
 
+/**
+ * Delete a customer contact (the person-to-customer relation).
+ *
+ * @param int $contact_id Contact relation id (0_crm_contacts.id)
+ *
+ * @return void
+ */
 function delete_customer_contact($contact_id)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "fa_crm_contacts WHERE id = " . (int)$contact_id;
-	$result = db_query($sql);
-	$old_data = db_fetch_assoc($result);
-	
-	$sql = "DELETE FROM " . TB_PREF . "fa_crm_contacts WHERE id = " . (int)$contact_id;
-	db_query($sql, "Could not delete customer contact");
-	
+	if (!crm_native_functions_loaded()) {
+		return;
+	}
+
+	$old_data = get_crm_contact((int) $contact_id);
+
+	delete_crm_contact((int) $contact_id);
+
 	// Dispatch events
 	crm_dispatch_event('crm.contact.deleted', [
-		'contact_id' => $contact_id,
+		'contact_id' => (int) $contact_id,
 		'old_data' => $old_data,
 	]);
-	crm_dispatch_event('db_postdelete', ['table' => 'fa_crm_contacts', 'id' => $contact_id]);
+	crm_dispatch_event('db_postdelete', ['table' => 'crm_contacts', 'id' => (int) $contact_id]);
 }
 
+/**
+ * A customer's contacts.
+ *
+ * @param string $debtor_no  Customer (FA debtor_no)
+ * @param bool   $active_only Unused: FA's contact registry has no inactive
+ *                           flag on the relation itself
+ *
+ * @return \ksfraser\FrontAccounting\Common\ContactResolver\Contact[] The contacts
+ */
 function get_customer_contacts($debtor_no, $active_only = true)
 {
-	$sql = "SELECT c.*, r.role_name FROM " . TB_PREF . "fa_crm_contacts c
-		LEFT JOIN " . TB_PREF . "crm_contact_roles r ON c.contact_role_id = r.id
-		WHERE c.debtor_no = " . db_escape($debtor_no);
-	if ($active_only) {
-		$sql .= " AND c.inactive = 0";
+	$resolver = crm_contact_resolver();
+	if ($resolver === null) {
+		return array();
 	}
-	$sql .= " ORDER BY c.is_primary DESC, c.last_name, c.first_name";
 
-	$result = db_query($sql, "Could not get customer contacts");
-	return $result;
+	return $resolver->findByCustomer($debtor_no);
 }
 
+/**
+ * One contact, by its contact relation id.
+ *
+ * @param int $contact_id Contact relation id (0_crm_contacts.id)
+ *
+ * @return \ksfraser\FrontAccounting\Common\ContactResolver\Contact|null
+ */
 function get_customer_contact($contact_id)
 {
-	$sql = "SELECT c.*, r.role_name FROM " . TB_PREF . "fa_crm_contacts c
-		LEFT JOIN " . TB_PREF . "crm_contact_roles r ON c.contact_role_id = r.id
-		WHERE c.id = " . (int)$contact_id;
+	$resolver = crm_contact_resolver();
+	if ($resolver === null) {
+		return null;
+	}
 
-	$result = db_query($sql, "Could not get customer contact");
-	return db_fetch($result);
+	return $resolver->findContactById((int) $contact_id);
 }
 
+/**
+ * The customer's primary contact.
+ *
+ * FA's contact registry has no primary flag (see the contact-access
+ * inventory 7.5), so there is no native way to mark one. The first contact
+ * of the customer is returned, which is as close as the registry allows.
+ *
+ * @param string $debtor_no Customer (FA debtor_no)
+ *
+ * @return \ksfraser\FrontAccounting\Common\ContactResolver\Contact|null
+ */
 function get_primary_contact($debtor_no)
 {
-	$sql = "SELECT c.*, r.role_name FROM " . TB_PREF . "fa_crm_contacts c
-		LEFT JOIN " . TB_PREF . "crm_contact_roles r ON c.contact_role_id = r.id
-		WHERE c.debtor_no = " . db_escape($debtor_no) . " AND c.is_primary = 1 AND c.inactive = 0
-		LIMIT 1";
+	$contacts = get_customer_contacts($debtor_no);
+	if (empty($contacts)) {
+		return null;
+	}
 
-	$result = db_query($sql, "Could not get primary contact");
-	return db_fetch($result);
+	return $contacts[0];
+}
+
+/**
+ * A contact's display fields, as the list screens expect them.
+ *
+ * @param int|null $contact_id Contact relation id
+ *
+ * @return array first_name, last_name, email, phone
+ */
+function crm_contact_display_fields($contact_id)
+{
+	$fields = array('first_name' => '', 'last_name' => '', 'email' => '', 'phone' => '');
+
+	if (empty($contact_id)) {
+		return $fields;
+	}
+
+	$contact = get_customer_contact((int) $contact_id);
+	if ($contact === null) {
+		return $fields;
+	}
+
+	$fields['first_name'] = $contact->getName();
+	$fields['last_name'] = $contact->getName2();
+	$fields['email'] = $contact->getEmail();
+	$fields['phone'] = $contact->getPhone();
+
+	return $fields;
 }
 
 // ============================================================================
@@ -221,7 +418,7 @@ function get_primary_contact($debtor_no)
 
 function add_communication($communication_data)
 {
-	$sql = "INSERT INTO " . TB_PREF . "fa_crm_communications
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_communications
 		(debtor_no, contact_id, communication_type, direction, subject, message,
 		email_from, email_to, phone_number, duration_minutes, status, scheduled_date,
 		completed_date, assigned_to, priority, follow_up_required, follow_up_date,
@@ -254,7 +451,7 @@ function add_communication($communication_data)
 
 function update_communication($communication_id, $communication_data)
 {
-	$sql = "UPDATE " . TB_PREF . "fa_crm_communications SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_communications SET
 		contact_id = " . db_escape($communication_data['contact_id']) . ",
 		communication_type = " . db_escape($communication_data['communication_type']) . ",
 		direction = " . db_escape($communication_data['direction']) . ",
@@ -281,40 +478,50 @@ function update_communication($communication_id, $communication_data)
 
 function delete_communication($communication_id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "fa_crm_communications WHERE id = " . (int)$communication_id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_communications WHERE id = " . (int)$communication_id;
 	db_query($sql, "Could not delete communication");
 }
 
 function get_customer_communications($debtor_no, $limit = 50, $offset = 0)
 {
-	$sql = "SELECT c.*, ct.first_name, ct.last_name, ct.email as contact_email
-		FROM " . TB_PREF . "fa_crm_communications c
-		LEFT JOIN " . TB_PREF . "fa_crm_contacts ct ON c.contact_id = ct.id
+	$sql = "SELECT c.* FROM " . TB_PREF . "ksf_crm_communications c
 		WHERE c.debtor_no = " . db_escape($debtor_no) . "
 		ORDER BY c.created_at DESC
 		LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
 
 	$result = db_query($sql, "Could not get customer communications");
-	return $result;
+
+	// The contact is FA core's person, reached through the shared contact
+	// resolver - never through a join against an FA core table.
+	$communications = array();
+	while ($row = db_fetch_assoc($result)) {
+		$communications[] = array_merge($row, crm_contact_display_fields($row['contact_id'] ?? null));
+	}
+
+	return $communications;
 }
 
 function get_communication($communication_id)
 {
-	$sql = "SELECT c.*, ct.first_name, ct.last_name, ct.email as contact_email
-		FROM " . TB_PREF . "fa_crm_communications c
-		LEFT JOIN " . TB_PREF . "fa_crm_contacts ct ON c.contact_id = ct.id
+	$sql = "SELECT c.* FROM " . TB_PREF . "ksf_crm_communications c
 		WHERE c.id = " . (int)$communication_id;
 
 	$result = db_query($sql, "Could not get communication");
-	return db_fetch($result);
+	$row = db_fetch_assoc($result);
+	if (!$row) {
+		return null;
+	}
+
+	// The contact is FA core's person, reached through the shared contact
+	// resolver - never through a join against an FA core table.
+	return array_merge($row, crm_contact_display_fields($row['contact_id'] ?? null));
 }
 
 function get_pending_followups($assigned_to = null)
 {
-	$sql = "SELECT c.*, d.name as customer_name, ct.first_name, ct.last_name
-		FROM " . TB_PREF . "fa_crm_communications c
+	$sql = "SELECT c.*, d.name as customer_name
+		FROM " . TB_PREF . "ksf_crm_communications c
 		JOIN " . TB_PREF . "debtors_master d ON c.debtor_no = d.debtor_no
-		LEFT JOIN " . TB_PREF . "fa_crm_contacts ct ON c.contact_id = ct.id
 		WHERE c.follow_up_required = 1
 		AND c.follow_up_date <= CURDATE()
 		AND c.status != 'cancelled'";
@@ -326,13 +533,21 @@ function get_pending_followups($assigned_to = null)
 	$sql .= " ORDER BY c.follow_up_date ASC, c.priority DESC";
 
 	$result = db_query($sql, "Could not get pending followups");
-	return $result;
+
+	// The contact is FA core's person, reached through the shared contact
+	// resolver - never through a join against an FA core table.
+	$followups = array();
+	while ($row = db_fetch_assoc($result)) {
+		$followups[] = array_merge($row, crm_contact_display_fields($row['contact_id'] ?? null));
+	}
+
+	return $followups;
 }
 
 function get_communications_by_email($email_address, $limit = 100)
 {
 	$sql = "SELECT c.*, d.name as customer_name
-		FROM " . TB_PREF . "fa_crm_communications c
+		FROM " . TB_PREF . "ksf_crm_communications c
 		JOIN " . TB_PREF . "debtors_master d ON c.debtor_no = d.debtor_no
 		WHERE (c.email_from = " . db_escape($email_address) . "
 		OR c.email_to = " . db_escape($email_address) . ")
@@ -347,7 +562,7 @@ function get_communications_by_email($email_address, $limit = 100)
 // Customer Types Functions
 function add_customer_type($type_name, $description, $discount_percent = 0, $credit_limit = 0, $payment_terms = null)
 {
-	$sql = "INSERT INTO " . TB_PREF . "fa_crm_customer_types
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_customer_types
 		(type_name, description, discount_percent, credit_limit, payment_terms)
 		VALUES (" . db_escape($type_name) . ", " . db_escape($description) . ",
 		" . (float)$discount_percent . ", " . (float)$credit_limit . ", " . db_escape($payment_terms) . ")";
@@ -358,7 +573,7 @@ function add_customer_type($type_name, $description, $discount_percent = 0, $cre
 
 function update_customer_type($id, $type_name, $description, $discount_percent = 0, $credit_limit = 0, $payment_terms = null)
 {
-	$sql = "UPDATE " . TB_PREF . "fa_crm_customer_types SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_customer_types SET
 		type_name = " . db_escape($type_name) . ",
 		description = " . db_escape($description) . ",
 		discount_percent = " . (float)$discount_percent . ",
@@ -371,13 +586,13 @@ function update_customer_type($id, $type_name, $description, $discount_percent =
 
 function delete_customer_type($id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "fa_crm_customer_types WHERE id = " . (int)$id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_customer_types WHERE id = " . (int)$id;
 	db_query($sql, "Could not delete customer type");
 }
 
 function get_customer_types($active_only = true)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "fa_crm_customer_types";
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_customer_types";
 	if ($active_only) {
 		$sql .= " WHERE inactive = 0";
 	}
@@ -389,7 +604,7 @@ function get_customer_types($active_only = true)
 // Customer Segments Functions
 function add_customer_segment($segment_name, $description, $criteria = null)
 {
-	$sql = "INSERT INTO " . TB_PREF . "crm_customer_segments
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_customer_segments
 		(segment_name, description, criteria)
 		VALUES (" . db_escape($segment_name) . ", " . db_escape($description) . ", " . db_escape($criteria) . ")";
 
@@ -399,7 +614,7 @@ function add_customer_segment($segment_name, $description, $criteria = null)
 
 function update_customer_segment($id, $segment_name, $description, $criteria = null)
 {
-	$sql = "UPDATE " . TB_PREF . "crm_customer_segments SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_customer_segments SET
 		segment_name = " . db_escape($segment_name) . ",
 		description = " . db_escape($description) . ",
 		criteria = " . db_escape($criteria) . "
@@ -410,13 +625,13 @@ function update_customer_segment($id, $segment_name, $description, $criteria = n
 
 function delete_customer_segment($id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "crm_customer_segments WHERE id = " . (int)$id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_customer_segments WHERE id = " . (int)$id;
 	db_query($sql, "Could not delete customer segment");
 }
 
 function get_customer_segments($active_only = true)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "crm_customer_segments";
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_customer_segments";
 	if ($active_only) {
 		$sql .= " WHERE inactive = 0";
 	}
@@ -428,7 +643,7 @@ function get_customer_segments($active_only = true)
 // Contact Roles Functions
 function add_contact_role($role_name, $description, $default_phone = null, $default_email = null)
 {
-	$sql = "INSERT INTO " . TB_PREF . "crm_contact_roles
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_contact_roles
 		(role_name, description, default_phone, default_email)
 		VALUES (" . db_escape($role_name) . ", " . db_escape($description) . ",
 		" . db_escape($default_phone) . ", " . db_escape($default_email) . ")";
@@ -439,7 +654,7 @@ function add_contact_role($role_name, $description, $default_phone = null, $defa
 
 function update_contact_role($id, $role_name, $description, $default_phone = null, $default_email = null)
 {
-	$sql = "UPDATE " . TB_PREF . "crm_contact_roles SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_contact_roles SET
 		role_name = " . db_escape($role_name) . ",
 		description = " . db_escape($description) . ",
 		default_phone = " . db_escape($default_phone) . ",
@@ -451,13 +666,13 @@ function update_contact_role($id, $role_name, $description, $default_phone = nul
 
 function delete_contact_role($id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "crm_contact_roles WHERE id = " . (int)$id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_contact_roles WHERE id = " . (int)$id;
 	db_query($sql, "Could not delete contact role");
 }
 
 function get_contact_roles($active_only = true)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "crm_contact_roles";
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_contact_roles";
 	if ($active_only) {
 		$sql .= " WHERE inactive = 0";
 	}
@@ -469,7 +684,7 @@ function get_contact_roles($active_only = true)
 // Territories Functions
 function add_territory($territory_name, $description, $sales_person = null, $region = null)
 {
-	$sql = "INSERT INTO " . TB_PREF . "fa_crm_territories
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_territories
 		(territory_name, description, sales_person, region)
 		VALUES (" . db_escape($territory_name) . ", " . db_escape($description) . ",
 		" . db_escape($sales_person) . ", " . db_escape($region) . ")";
@@ -480,7 +695,7 @@ function add_territory($territory_name, $description, $sales_person = null, $reg
 
 function update_territory($id, $territory_name, $description, $sales_person = null, $region = null)
 {
-	$sql = "UPDATE " . TB_PREF . "fa_crm_territories SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_territories SET
 		territory_name = " . db_escape($territory_name) . ",
 		description = " . db_escape($description) . ",
 		sales_person = " . db_escape($sales_person) . ",
@@ -492,13 +707,13 @@ function update_territory($id, $territory_name, $description, $sales_person = nu
 
 function delete_territory($id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "fa_crm_territories WHERE id = " . (int)$id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_territories WHERE id = " . (int)$id;
 	db_query($sql, "Could not delete territory");
 }
 
 function get_territories($active_only = true)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "fa_crm_territories";
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_territories";
 	if ($active_only) {
 		$sql .= " WHERE inactive = 0";
 	}
@@ -512,7 +727,7 @@ function add_sales_opportunity($opportunity_name, $customer_id, $contact_id = nu
 	$opportunity_type = 'sales', $status = 'prospect', $estimated_value = 0, $probability = 0,
 	$expected_close_date = null, $notes = null)
 {
-	$sql = "INSERT INTO " . TB_PREF . "fa_crm_opportunities
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_opportunities
 		(opportunity_name, customer_id, contact_id, sales_person, opportunity_type, status,
 		estimated_value, probability, expected_close_date, notes)
 		VALUES (" . db_escape($opportunity_name) . ", " . db_escape($customer_id) . ",
@@ -528,7 +743,7 @@ function update_sales_opportunity($id, $opportunity_name, $customer_id, $contact
 	$opportunity_type = 'sales', $status = 'prospect', $estimated_value = 0, $probability = 0,
 	$expected_close_date = null, $notes = null)
 {
-	$sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_opportunities SET
 		opportunity_name = " . db_escape($opportunity_name) . ",
 		customer_id = " . db_escape($customer_id) . ",
 		contact_id = " . db_escape($contact_id) . ",
@@ -546,13 +761,13 @@ function update_sales_opportunity($id, $opportunity_name, $customer_id, $contact
 
 function delete_sales_opportunity($id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "fa_crm_opportunities WHERE id = " . (int)$id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_opportunities WHERE id = " . (int)$id;
 	db_query($sql, "Could not delete sales opportunity");
 }
 
 function get_customer_opportunities($customer_id)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "fa_crm_opportunities
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_opportunities
 	WHERE customer_id = " . db_escape($customer_id) . "
 	ORDER BY expected_close_date DESC, estimated_value DESC";
 
@@ -563,7 +778,7 @@ function get_customer_opportunities($customer_id)
 function add_edi_config($customer_id, $edi_type, $edi_code, $ftp_host = null, $ftp_username = null,
 	$ftp_password = null, $email_address = null, $active = 1)
 {
-	$sql = "INSERT INTO " . TB_PREF . "crm_edi_config
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_edi_config
 		(customer_id, edi_type, edi_code, ftp_host, ftp_username, ftp_password, email_address, active)
 		VALUES (" . db_escape($customer_id) . ", " . db_escape($edi_type) . ", " . db_escape($edi_code) . ",
 		" . db_escape($ftp_host) . ", " . db_escape($ftp_username) . ", " . db_escape($ftp_password) . ",
@@ -576,7 +791,7 @@ function add_edi_config($customer_id, $edi_type, $edi_code, $ftp_host = null, $f
 function update_edi_config($id, $customer_id, $edi_type, $edi_code, $ftp_host = null, $ftp_username = null,
 	$ftp_password = null, $email_address = null, $active = 1)
 {
-	$sql = "UPDATE " . TB_PREF . "crm_edi_config SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_edi_config SET
 		customer_id = " . db_escape($customer_id) . ",
 		edi_type = " . db_escape($edi_type) . ",
 		edi_code = " . db_escape($edi_code) . ",
@@ -592,7 +807,7 @@ function update_edi_config($id, $customer_id, $edi_type, $edi_code, $ftp_host = 
 
 function get_customer_edi_config($customer_id)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "crm_edi_config
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_edi_config
 	WHERE customer_id = " . db_escape($customer_id) . " AND active = 1
 	LIMIT 1";
 
@@ -610,7 +825,7 @@ function get_customer_analytics($customer_id, $period_start = null, $period_end 
 		$period_end = date('Y-m-t');
 	}
 
-	$sql = "SELECT * FROM " . TB_PREF . "crm_customer_analytics
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_customer_analytics
 	WHERE customer_id = " . db_escape($customer_id) . "
 	AND period_start >= " . db_escape($period_start) . "
 	AND period_end <= " . db_escape($period_end) . "
@@ -674,7 +889,7 @@ function update_customer_analytics($customer_id)
 {
 	$analytics = calculate_customer_analytics($customer_id);
 
-	$sql = "INSERT INTO " . TB_PREF . "crm_customer_analytics
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_customer_analytics
 		(customer_id, period_start, period_end, total_sales, total_payments,
 		outstanding_balance, payment_days_avg, customer_lifetime_value)
 		VALUES (" . db_escape($analytics['customer_id']) . ", " . db_escape($analytics['period_start']) . ",
@@ -694,7 +909,7 @@ function update_customer_analytics($customer_id)
 // UI Helper Functions
 function customer_types_list($name, $selected_id = null, $submit_on_change = false)
 {
-	$sql = "SELECT id, type_name FROM " . TB_PREF . "fa_crm_customer_types WHERE inactive = 0 ORDER BY type_name";
+	$sql = "SELECT id, type_name FROM " . TB_PREF . "ksf_crm_customer_types WHERE inactive = 0 ORDER BY type_name";
 	return combo_input($name, $selected_id, $sql, 'id', 'type_name',
 		array('select_submit' => $submit_on_change, 'async' => false));
 }
@@ -708,7 +923,7 @@ function customer_types_list_row($label, $name, $selected_id = null, $submit_on_
 
 function customer_segments_list($name, $selected_id = null, $submit_on_change = false)
 {
-	$sql = "SELECT id, segment_name FROM " . TB_PREF . "crm_customer_segments WHERE inactive = 0 ORDER BY segment_name";
+	$sql = "SELECT id, segment_name FROM " . TB_PREF . "ksf_crm_customer_segments WHERE inactive = 0 ORDER BY segment_name";
 	return combo_input($name, $selected_id, $sql, 'id', 'segment_name',
 		array('select_submit' => $submit_on_change, 'async' => false));
 }
@@ -722,7 +937,7 @@ function customer_segments_list_row($label, $name, $selected_id = null, $submit_
 
 function contact_roles_list($name, $selected_id = null, $submit_on_change = false)
 {
-	$sql = "SELECT id, role_name FROM " . TB_PREF . "crm_contact_roles WHERE inactive = 0 ORDER BY role_name";
+	$sql = "SELECT id, role_name FROM " . TB_PREF . "ksf_crm_contact_roles WHERE inactive = 0 ORDER BY role_name";
 	return combo_input($name, $selected_id, $sql, 'id', 'role_name',
 		array('select_submit' => $submit_on_change, 'async' => false));
 }
@@ -736,7 +951,7 @@ function contact_roles_list_row($label, $name, $selected_id = null, $submit_on_c
 
 function territories_list($name, $selected_id = null, $submit_on_change = false)
 {
-	$sql = "SELECT id, territory_name FROM " . TB_PREF . "fa_crm_territories WHERE inactive = 0 ORDER BY territory_name";
+	$sql = "SELECT id, territory_name FROM " . TB_PREF . "ksf_crm_territories WHERE inactive = 0 ORDER BY territory_name";
 	return combo_input($name, $selected_id, $sql, 'id', 'territory_name',
 		array('select_submit' => $submit_on_change, 'async' => false));
 }
@@ -784,15 +999,12 @@ function credit_rating_row($label, $name, $selected = null)
 
 function display_customer_contacts($customer_id)
 {
-	$sql = "SELECT cc.*, cr.role_name
-	FROM " . TB_PREF . "custcontacts cc
-	LEFT JOIN " . TB_PREF . "crm_contact_roles cr ON cc.role_id = cr.id
-	WHERE cc.debtorno = " . db_escape($customer_id) . "
-	ORDER BY cc.contid";
+	// The customer's contacts are FA core's persons linked to that customer,
+	// reached through the shared contact resolver - there is no
+	// 0_custcontacts table (it belongs to a much older FrontAccounting).
+	$contacts = get_customer_contacts($customer_id);
 
-	$result = db_query($sql, "Could not get customer contacts");
-
-	if (db_num_rows($result) == 0) {
+	if (empty($contacts)) {
 		echo "<p>" . _("No contacts defined for this customer") . "</p>";
 		return;
 	}
@@ -800,14 +1012,16 @@ function display_customer_contacts($customer_id)
 	start_table(TABLESTYLE);
 	table_header(array(_("Name"), _("Role"), _("Phone"), _("Email"), _("Notes"), ""));
 
-	while ($contact = db_fetch($result)) {
+	foreach ($contacts as $contact) {
+		$contact_id = $contact->getContactId();
+
 		start_row();
-		label_cell($contact['contactname']);
-		label_cell($contact['role_name'] ?: $contact['role']);
-		label_cell($contact['phoneno']);
-		email_cell($contact['email']);
-		label_cell($contact['notes']);
-		edit_button_cell("Edit" . $contact['contid'], _("Edit"));
+		label_cell(trim($contact->getName() . ' ' . $contact->getName2()));
+		label_cell($contact->getType() !== null ? $contact->getType() : '');
+		label_cell($contact->getPhone());
+		email_cell($contact->getEmail());
+		label_cell($contact->getRef());
+		edit_button_cell("Edit" . ($contact_id === null ? '' : $contact_id), _("Edit"));
 		end_row();
 	}
 
@@ -847,7 +1061,7 @@ function display_customer_opportunities($customer_id)
 
 function add_opportunity($customer_id, $name, $description, $stage, $amount, $probability, $expected_close_date, $assigned_to, $source)
 {
-	$sql = "INSERT INTO " . TB_PREF . "fa_crm_opportunities
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_opportunities
 		(customer_id, name, description, stage, amount, probability, expected_close_date, assigned_to, source, created_at)
 		VALUES (" . db_escape($customer_id) . ", " . db_escape($name) . ", " . db_escape($description) . ",
 		" . db_escape($stage) . ", " . (float)$amount . ", " . (float)$probability . ",
@@ -859,7 +1073,7 @@ function add_opportunity($customer_id, $name, $description, $stage, $amount, $pr
 
 function update_opportunity($id, $customer_id, $name, $description, $stage, $amount, $probability, $expected_close_date, $assigned_to, $source)
 {
-	$sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_opportunities SET
 		customer_id = " . db_escape($customer_id) . ",
 		name = " . db_escape($name) . ",
 		description = " . db_escape($description) . ",
@@ -876,14 +1090,14 @@ function update_opportunity($id, $customer_id, $name, $description, $stage, $amo
 
 function delete_opportunity($id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "fa_crm_opportunities WHERE id = " . (int)$id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_opportunities WHERE id = " . (int)$id;
 	db_query($sql, "Could not delete opportunity");
 }
 
 function get_opportunities($active_only = true)
 {
 	$sql = "SELECT o.*, d.name as customer_name, u.user_id as assigned_to_name
-		FROM " . TB_PREF . "fa_crm_opportunities o
+		FROM " . TB_PREF . "ksf_crm_opportunities o
 		JOIN " . TB_PREF . "debtors_master d ON o.customer_id = d.debtor_no
 		LEFT JOIN " . TB_PREF . "users u ON o.assigned_to = u.id";
 
@@ -900,7 +1114,7 @@ function get_opportunities($active_only = true)
 function get_opportunity($id)
 {
 	$sql = "SELECT o.*, d.name as customer_name, u.user_id as assigned_to_name
-		FROM " . TB_PREF . "fa_crm_opportunities o
+		FROM " . TB_PREF . "ksf_crm_opportunities o
 		JOIN " . TB_PREF . "debtors_master d ON o.customer_id = d.debtor_no
 		LEFT JOIN " . TB_PREF . "users u ON o.assigned_to = u.id
 		WHERE o.id = " . (int)$id;
@@ -990,7 +1204,7 @@ function import_ics_meeting($ics_event, $account_id = null)
 
 function add_meeting_room($room_data)
 {
-	$sql = "INSERT INTO " . TB_PREF . "crm_meeting_rooms
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_meeting_rooms
 		(room_name, room_type, location, capacity, equipment, phone_number, conference_url, active)
 		VALUES (" . db_escape($room_data['room_name']) . ", " . db_escape($room_data['room_type']) . ",
 		" . db_escape($room_data['location']) . ", " . (int)$room_data['capacity'] . ",
@@ -1003,7 +1217,7 @@ function add_meeting_room($room_data)
 
 function update_meeting_room($id, $room_data)
 {
-	$sql = "UPDATE " . TB_PREF . "crm_meeting_rooms SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_meeting_rooms SET
 		room_name = " . db_escape($room_data['room_name']) . ",
 		room_type = " . db_escape($room_data['room_type']) . ",
 		location = " . db_escape($room_data['location']) . ",
@@ -1019,13 +1233,13 @@ function update_meeting_room($id, $room_data)
 
 function delete_meeting_room($id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "crm_meeting_rooms WHERE id = " . (int)$id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_meeting_rooms WHERE id = " . (int)$id;
 	db_query($sql, "Could not delete meeting room");
 }
 
 function get_meeting_rooms($active_only = true)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "crm_meeting_rooms";
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_meeting_rooms";
 	if ($active_only) {
 		$sql .= " WHERE active = 1";
 	}
@@ -1037,7 +1251,7 @@ function get_meeting_rooms($active_only = true)
 
 function get_meeting_room($id)
 {
-	$sql = "SELECT * FROM " . TB_PREF . "crm_meeting_rooms WHERE id = " . (int)$id;
+	$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_meeting_rooms WHERE id = " . (int)$id;
 	$result = db_query($sql, "Could not get meeting room");
 	return db_fetch($result);
 }
@@ -1048,7 +1262,7 @@ function get_meeting_room($id)
 
 function add_meeting($meeting_data)
 {
-	$sql = "INSERT INTO " . TB_PREF . "crm_meetings (
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_meetings (
 		meeting_name, meeting_type, description, start_date, end_date, duration_minutes, time_zone,
 		location_type, room_id, custom_location, phone_number, conference_url, meeting_url,
 		dial_in_number, access_code, host_pin, debtor_no, opportunity_id, project_id, quote_id,
@@ -1095,7 +1309,7 @@ function add_meeting($meeting_data)
 
 function update_meeting($id, $meeting_data)
 {
-	$sql = "UPDATE " . TB_PREF . "crm_meetings SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_meetings SET
 		meeting_name = " . db_escape($meeting_data['meeting_name']) . ",
 		meeting_type = " . db_escape($meeting_data['meeting_type']) . ",
 		description = " . db_escape($meeting_data['description']) . ",
@@ -1136,7 +1350,7 @@ function update_meeting($id, $meeting_data)
 
 function delete_meeting($id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "crm_meetings WHERE id = " . (int)$id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_meetings WHERE id = " . (int)$id;
 	db_query($sql, "Could not delete meeting");
 }
 
@@ -1148,12 +1362,12 @@ function get_meetings($filters = array(), $limit = null, $offset = 0)
 		u.user_id as assigned_to_name,
 		o.opportunity_name,
 		c.campaign_name
-	FROM " . TB_PREF . "crm_meetings m
+	FROM " . TB_PREF . "ksf_crm_meetings m
 	LEFT JOIN " . TB_PREF . "debtors_master d ON m.debtor_no = d.debtor_no
-	LEFT JOIN " . TB_PREF . "crm_meeting_rooms r ON m.room_id = r.id
+	LEFT JOIN " . TB_PREF . "ksf_crm_meeting_rooms r ON m.room_id = r.id
 	LEFT JOIN " . TB_PREF . "users u ON m.assigned_to = u.id
-	LEFT JOIN " . TB_PREF . "fa_crm_opportunities o ON m.opportunity_id = o.id
-	LEFT JOIN " . TB_PREF . "crm_campaigns c ON m.campaign_id = c.id
+	LEFT JOIN " . TB_PREF . "ksf_crm_opportunities o ON m.opportunity_id = o.id
+	LEFT JOIN " . TB_PREF . "ksf_crm_campaigns c ON m.campaign_id = c.id
 	WHERE 1=1";
 
 	// Apply filters
@@ -1194,12 +1408,12 @@ function get_meeting($id)
 		u.user_id as assigned_to_name,
 		o.opportunity_name,
 		c.campaign_name
-	FROM " . TB_PREF . "crm_meetings m
+	FROM " . TB_PREF . "ksf_crm_meetings m
 	LEFT JOIN " . TB_PREF . "debtors_master d ON m.debtor_no = d.debtor_no
-	LEFT JOIN " . TB_PREF . "crm_meeting_rooms r ON m.room_id = r.id
+	LEFT JOIN " . TB_PREF . "ksf_crm_meeting_rooms r ON m.room_id = r.id
 	LEFT JOIN " . TB_PREF . "users u ON m.assigned_to = u.id
-	LEFT JOIN " . TB_PREF . "fa_crm_opportunities o ON m.opportunity_id = o.id
-	LEFT JOIN " . TB_PREF . "crm_campaigns c ON m.campaign_id = c.id
+	LEFT JOIN " . TB_PREF . "ksf_crm_opportunities o ON m.opportunity_id = o.id
+	LEFT JOIN " . TB_PREF . "ksf_crm_campaigns c ON m.campaign_id = c.id
 	WHERE m.id = " . (int)$id;
 
 	$result = db_query($sql, "Could not get meeting");
@@ -1214,9 +1428,9 @@ function get_upcoming_meetings($days_ahead = 7, $user_id = null)
 		d.name as customer_name,
 		r.room_name,
 		u.user_id as assigned_to_name
-	FROM " . TB_PREF . "crm_meetings m
+	FROM " . TB_PREF . "ksf_crm_meetings m
 	LEFT JOIN " . TB_PREF . "debtors_master d ON m.debtor_no = d.debtor_no
-	LEFT JOIN " . TB_PREF . "crm_meeting_rooms r ON m.room_id = r.id
+	LEFT JOIN " . TB_PREF . "ksf_crm_meeting_rooms r ON m.room_id = r.id
 	LEFT JOIN " . TB_PREF . "users u ON m.assigned_to = u.id
 	WHERE m.start_date <= " . db_escape($end_date) . "
 	AND m.status IN ('planned', 'confirmed')
@@ -1225,7 +1439,7 @@ function get_upcoming_meetings($days_ahead = 7, $user_id = null)
 	if ($user_id) {
 		$sql .= " AND (m.assigned_to = " . db_escape($user_id) . "
 			OR m.id IN (
-				SELECT meeting_id FROM " . TB_PREF . "crm_meeting_attendees
+				SELECT meeting_id FROM " . TB_PREF . "ksf_crm_meeting_attendees
 				WHERE attendee_type = 'employee' AND employee_id = " . db_escape($user_id) . "
 			))";
 	}
@@ -1242,7 +1456,7 @@ function get_upcoming_meetings($days_ahead = 7, $user_id = null)
 
 function add_meeting_attendee($meeting_id, $attendee_data)
 {
-	$sql = "INSERT INTO " . TB_PREF . "crm_meeting_attendees (
+	$sql = "INSERT INTO " . TB_PREF . "ksf_crm_meeting_attendees (
 		meeting_id, attendee_type, employee_id, contact_id, external_name,
 		external_email, external_phone, attendee_role, response_status, notes
 	) VALUES (
@@ -1264,7 +1478,7 @@ function add_meeting_attendee($meeting_id, $attendee_data)
 
 function update_meeting_attendee($id, $attendee_data)
 {
-	$sql = "UPDATE " . TB_PREF . "crm_meeting_attendees SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_meeting_attendees SET
 		attendee_type = " . db_escape($attendee_data['attendee_type']) . ",
 		employee_id = " . db_escape($attendee_data['employee_id']) . ",
 		contact_id = " . db_escape($attendee_data['contact_id']) . ",
@@ -1282,30 +1496,46 @@ function update_meeting_attendee($id, $attendee_data)
 
 function delete_meeting_attendee($id)
 {
-	$sql = "DELETE FROM " . TB_PREF . "crm_meeting_attendees WHERE id = " . (int)$id;
+	$sql = "DELETE FROM " . TB_PREF . "ksf_crm_meeting_attendees WHERE id = " . (int)$id;
 	db_query($sql, "Could not delete meeting attendee");
 }
 
 function get_meeting_attendees($meeting_id)
 {
 	$sql = "SELECT ma.*,
-		u.user_id as employee_name,
-		CONCAT(cc.first_name, ' ', cc.last_name) as contact_name,
-		cc.email as contact_email,
-		cc.phone as contact_phone
-	FROM " . TB_PREF . "crm_meeting_attendees ma
+		u.user_id as employee_name
+	FROM " . TB_PREF . "ksf_crm_meeting_attendees ma
 	LEFT JOIN " . TB_PREF . "users u ON ma.employee_id = u.id AND ma.attendee_type = 'employee'
-	LEFT JOIN " . TB_PREF . "fa_crm_contacts cc ON ma.contact_id = cc.id AND ma.attendee_type = 'contact'
 	WHERE ma.meeting_id = " . (int)$meeting_id . "
 	ORDER BY ma.attendee_role ASC, ma.attendee_type ASC";
 
 	$result = db_query($sql, "Could not get meeting attendees");
-	return $result;
+
+	// An attendee who is a contact is FA core's person, reached through the
+	// shared contact resolver - never through a join against an FA core table.
+	$attendees = array();
+	while ($row = db_fetch_assoc($result)) {
+		if (($row['attendee_type'] ?? '') === 'contact') {
+			$contact = get_customer_contact((int) ($row['contact_id'] ?? 0));
+			if ($contact !== null) {
+				$row['contact_name'] = trim($contact->getName() . ' ' . $contact->getName2());
+				$row['contact_email'] = $contact->getEmail();
+				$row['contact_phone'] = $contact->getPhone();
+			} else {
+				$row['contact_name'] = '';
+				$row['contact_email'] = '';
+				$row['contact_phone'] = '';
+			}
+		}
+		$attendees[] = $row;
+	}
+
+	return $attendees;
 }
 
 function update_attendee_response($attendee_id, $response_status)
 {
-	$sql = "UPDATE " . TB_PREF . "crm_meeting_attendees SET
+	$sql = "UPDATE " . TB_PREF . "ksf_crm_meeting_attendees SET
 		response_status = " . db_escape($response_status) . ",
 		response_date = NOW()
 	WHERE id = " . (int)$attendee_id;
@@ -1476,7 +1706,7 @@ function parse_ics_file($ics_content)
  * Get CRM customer count
  */
 function get_crm_customer_count() {
-    $sql = "SELECT COUNT(*) as count FROM " . TB_PREF . "fa_crm_customers WHERE inactive = 0";
+    $sql = "SELECT COUNT(*) as count FROM " . TB_PREF . "ksf_crm_customers WHERE inactive = 0";
     $result = db_query($sql);
     $row = db_fetch_assoc($result);
     return $row['count'] ?? 0;
@@ -1486,7 +1716,7 @@ function get_crm_customer_count() {
  * Get CRM opportunity count by status
  */
 function get_crm_opportunity_count($status = 'active') {
-    $sql = "SELECT COUNT(*) as count FROM " . TB_PREF . "fa_crm_opportunities WHERE inactive = 0";
+    $sql = "SELECT COUNT(*) as count FROM " . TB_PREF . "ksf_crm_opportunities WHERE inactive = 0";
     if ($status == 'active') {
         $sql .= " AND status NOT IN ('won', 'lost')";
     } elseif ($status) {
@@ -1501,7 +1731,7 @@ function get_crm_opportunity_count($status = 'active') {
  * Get CRM follow-up count
  */
 function get_crm_followup_count() {
-    $sql = "SELECT COUNT(*) as count FROM " . TB_PREF . "fa_crm_communications 
+    $sql = "SELECT COUNT(*) as count FROM " . TB_PREF . "ksf_crm_communications 
             WHERE follow_up_required = 1 
             AND follow_up_date <= '" . date('Y-m-d') . "'
             AND status != 'completed'";
@@ -1514,7 +1744,7 @@ function get_crm_followup_count() {
  * Get CRM communication count for today
  */
 function get_crm_communication_count_today() {
-    $sql = "SELECT COUNT(*) as count FROM " . TB_PREF . "fa_crm_communications 
+    $sql = "SELECT COUNT(*) as count FROM " . TB_PREF . "ksf_crm_communications 
             WHERE DATE(created_at) = CURDATE()";
     $result = db_query($sql);
     $row = db_fetch_assoc($result);
@@ -1526,10 +1756,10 @@ function get_crm_communication_count_today() {
  */
 function get_crm_customers($search = '', $filter_type = '') {
     $sql = "SELECT c.*, d.name, ct.name as type_name, t.name as territory_name
-            FROM " . TB_PREF . "fa_crm_customers c
+            FROM " . TB_PREF . "ksf_crm_customers c
             LEFT JOIN " . TB_PREF . "debtors_master d ON c.debtor_no = d.debtor_no
-            LEFT JOIN " . TB_PREF . "fa_crm_customer_types ct ON c.customer_type_id = ct.id
-            LEFT JOIN " . TB_PREF . "fa_crm_territories t ON c.territory_id = t.id
+            LEFT JOIN " . TB_PREF . "ksf_crm_customer_types ct ON c.customer_type_id = ct.id
+            LEFT JOIN " . TB_PREF . "ksf_crm_territories t ON c.territory_id = t.id
             WHERE c.inactive = 0";
     
     if ($search) {
@@ -1552,10 +1782,10 @@ function get_crm_customers($search = '', $filter_type = '') {
  */
 function get_crm_customer($debtor_no) {
     $sql = "SELECT c.*, d.name, ct.name as type_name, t.name as territory_name
-            FROM " . TB_PREF . "fa_crm_customers c
+            FROM " . TB_PREF . "ksf_crm_customers c
             LEFT JOIN " . TB_PREF . "debtors_master d ON c.debtor_no = d.debtor_no
-            LEFT JOIN " . TB_PREF . "fa_crm_customer_types ct ON c.customer_type_id = ct.id
-            LEFT JOIN " . TB_PREF . "fa_crm_territories t ON c.territory_id = t.id
+            LEFT JOIN " . TB_PREF . "ksf_crm_customer_types ct ON c.customer_type_id = ct.id
+            LEFT JOIN " . TB_PREF . "ksf_crm_territories t ON c.territory_id = t.id
             WHERE c.debtor_no = " . db_escape($debtor_no);
     
     $result = db_query($sql, "Could not get CRM customer");
@@ -1566,7 +1796,7 @@ function get_crm_customer($debtor_no) {
  * Get CRM customer types
  */
 function get_crm_customer_types() {
-    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_customer_types 
+    $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_customer_types 
             WHERE inactive = 0 ORDER BY sort_order, name";
     return db_query($sql, "Could not get customer types");
 }
@@ -1575,7 +1805,7 @@ function get_crm_customer_types() {
  * Get CRM territories
  */
 function get_crm_territories() {
-    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_territories 
+    $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_territories 
             WHERE inactive = 0 ORDER BY sort_order, name";
     return db_query($sql, "Could not get territories");
 }
@@ -1585,7 +1815,7 @@ function get_crm_territories() {
  */
 function get_crm_opportunities($status = '') {
     $sql = "SELECT o.*, d.name as customer_name
-            FROM " . TB_PREF . "fa_crm_opportunities o
+            FROM " . TB_PREF . "ksf_crm_opportunities o
             LEFT JOIN " . TB_PREF . "debtors_master d ON o.debtor_no = d.debtor_no
             WHERE o.inactive = 0";
     
@@ -1603,7 +1833,7 @@ function get_crm_opportunities($status = '') {
  */
 function get_crm_opportunity($id) {
     $sql = "SELECT o.*, d.name as customer_name
-            FROM " . TB_PREF . "fa_crm_opportunities o
+            FROM " . TB_PREF . "ksf_crm_opportunities o
             LEFT JOIN " . TB_PREF . "debtors_master d ON o.debtor_no = d.debtor_no
             WHERE o.id = " . db_escape($id);
     
@@ -1615,7 +1845,7 @@ function get_crm_opportunity($id) {
  * Insert CRM opportunity
  */
 function insert_crm_opportunity($data) {
-    $sql = "INSERT INTO " . TB_PREF . "fa_crm_opportunities 
+    $sql = "INSERT INTO " . TB_PREF . "ksf_crm_opportunities 
             (opportunity_name, debtor_no, opportunity_type, status, stage, source, 
              estimated_value, probability, expected_close_date, notes, assigned_to, created_at)
             VALUES (
@@ -1641,7 +1871,7 @@ function insert_crm_opportunity($data) {
  * Update CRM opportunity
  */
 function update_crm_opportunity($id, $data) {
-    $sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+    $sql = "UPDATE " . TB_PREF . "ksf_crm_opportunities SET
             opportunity_name = " . db_escape($data['opportunity_name']) . ",
             debtor_no = " . db_escape($data['debtor_no']) . ",
             opportunity_type = " . db_escape($data['opportunity_type'] ?? '') . ",
@@ -1661,7 +1891,7 @@ function update_crm_opportunity($id, $data) {
  * Update opportunity stage
  */
 function update_crm_opportunity_stage($id, $stage) {
-    $sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+    $sql = "UPDATE " . TB_PREF . "ksf_crm_opportunities SET
             stage = " . db_escape($stage) . "
             WHERE id = " . db_escape($id);
     
@@ -1673,7 +1903,7 @@ function update_crm_opportunity_stage($id, $stage) {
  */
 function get_crm_communications($filters = array()) {
     $sql = "SELECT c.*, d.name as customer_name
-            FROM " . TB_PREF . "fa_crm_communications c
+            FROM " . TB_PREF . "ksf_crm_communications c
             LEFT JOIN " . TB_PREF . "debtors_master d ON c.debtor_no = d.debtor_no
             WHERE 1=1";
     
@@ -1692,7 +1922,7 @@ function get_crm_communications($filters = array()) {
 function insert_crm_communication($data) {
     $user_id = isset($_SESSION['wa_current_user']) ? $_SESSION['wa_current_user']->user : 'system';
     
-    $sql = "INSERT INTO " . TB_PREF . "fa_crm_communications 
+    $sql = "INSERT INTO " . TB_PREF . "ksf_crm_communications 
             (debtor_no, contact_id, communication_type, direction, subject, message,
              follow_up_required, follow_up_date, notes, created_by, created_at)
             VALUES (
@@ -1736,7 +1966,7 @@ function display_crm_dashboard_stats($stats) {
  */
 function display_crm_recent_activities() {
     $sql = "SELECT al.*, d.name as customer_name
-            FROM " . TB_PREF . "fa_crm_activity_log al
+            FROM " . TB_PREF . "ksf_crm_activity_log al
             LEFT JOIN " . TB_PREF . "debtors_master d ON al.debtor_no = d.debtor_no
             ORDER BY al.created_at DESC LIMIT 10";
     
@@ -1785,7 +2015,7 @@ function get_stage_class($stage) {
 
 function add_lead($lead_data)
 {
-    $sql = "INSERT INTO " . TB_PREF . "fa_crm_leads
+    $sql = "INSERT INTO " . TB_PREF . "ksf_crm_leads
         (debtor_no, lead_source, lead_status, rating, annual_revenue, employee_count,
         industry, website, phone, email, address, assigned_to, campaign_id, notes)
     VALUES (" . db_escape($lead_data['debtor_no']) . ",
@@ -1812,7 +2042,7 @@ function add_lead($lead_data)
         'debtor_no' => $lead_data['debtor_no'] ?? null,
         'data' => $lead_data,
     ]);
-    crm_dispatch_event('db_postinsert', ['table' => 'fa_crm_leads', 'id' => $lead_id]);
+    crm_dispatch_event('db_postinsert', ['table' => 'ksf_crm_leads', 'id' => $lead_id]);
     
     return $lead_id;
 }
@@ -1820,7 +2050,7 @@ function add_lead($lead_data)
 function get_lead($lead_id)
 {
     $sql = "SELECT l.*, d.name as debtor_name, d.curr_code
-        FROM " . TB_PREF . "fa_crm_leads l
+        FROM " . TB_PREF . "ksf_crm_leads l
         LEFT JOIN " . TB_PREF . "debtors_master d ON l.debtor_no = d.debtor_no
         WHERE l.id = " . db_escape($lead_id);
     $result = db_query($sql, "Could not get lead");
@@ -1829,7 +2059,7 @@ function get_lead($lead_id)
 
 function get_lead_by_debtor($debtor_no)
 {
-    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_leads 
+    $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_leads 
         WHERE debtor_no = " . db_escape($debtor_no) . "
         AND converted_to_debtor_no IS NULL";
     $result = db_query($sql, "Could not get lead");
@@ -1838,7 +2068,7 @@ function get_lead_by_debtor($debtor_no)
 
 function update_lead($lead_id, $lead_data)
 {
-    $sql = "UPDATE " . TB_PREF . "fa_crm_leads SET
+    $sql = "UPDATE " . TB_PREF . "ksf_crm_leads SET
         lead_source = " . db_escape($lead_data['lead_source']) . ",
         lead_status = " . db_escape($lead_data['lead_status']) . ",
         rating = " . db_escape($lead_data['rating']) . ",
@@ -1861,16 +2091,16 @@ function update_lead($lead_id, $lead_data)
         'lead_id' => $lead_id,
         'data' => $lead_data,
     ]);
-    crm_dispatch_event('db_postupdate', ['table' => 'fa_crm_leads', 'id' => $lead_id]);
+    crm_dispatch_event('db_postupdate', ['table' => 'ksf_crm_leads', 'id' => $lead_id]);
 }
 
 function delete_lead($lead_id)
 {
-    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_leads WHERE id = " . db_escape($lead_id);
+    $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_leads WHERE id = " . db_escape($lead_id);
     $result = db_query($sql);
     $old_data = db_fetch_assoc($result);
     
-    $sql = "DELETE FROM " . TB_PREF . "fa_crm_leads WHERE id = " . db_escape($lead_id);
+    $sql = "DELETE FROM " . TB_PREF . "ksf_crm_leads WHERE id = " . db_escape($lead_id);
     db_query($sql, "Could not delete lead");
     
     // Dispatch events
@@ -1878,7 +2108,7 @@ function delete_lead($lead_id)
         'lead_id' => $lead_id,
         'old_data' => $old_data,
     ]);
-    crm_dispatch_event('db_postdelete', ['table' => 'fa_crm_leads', 'id' => $lead_id]);
+    crm_dispatch_event('db_postdelete', ['table' => 'ksf_crm_leads', 'id' => $lead_id]);
 }
 
 function convert_lead($lead_id, $converted_debtor_no)
@@ -1887,22 +2117,27 @@ function convert_lead($lead_id, $converted_debtor_no)
     if (!$lead) return false;
 
     // Update lead record
-    $sql = "UPDATE " . TB_PREF . "fa_crm_leads SET
+    $sql = "UPDATE " . TB_PREF . "ksf_crm_leads SET
         lead_status = 'converted',
         converted_date = NOW(),
         converted_to_debtor_no = " . db_escape($converted_debtor_no) . "
     WHERE id = " . db_escape($lead_id);
     db_query($sql, "Could not convert lead");
 
-    // Insert contact-account relationship if contact exists
+    // Insert contact-account relationship if the lead has a contact. The
+    // contact is FA core's person/relation pair, reached through the shared
+    // contact resolver - never through a join against an FA core table.
     if (!empty($lead['debtor_no'])) {
-        $sql = "INSERT IGNORE INTO " . TB_PREF . "fa_crm_contact_accounts
-            (contact_id, debtor_no, is_primary, role)
-        SELECT c.id, " . db_escape($converted_debtor_no) . ", 1, 'Converted Lead'
-        FROM " . TB_PREF . "fa_crm_contacts c
-        WHERE c.debtor_no = " . db_escape($lead['debtor_no']) . "
-        LIMIT 1";
-        db_query($sql, "Could not create contact account link");
+        $contacts = get_customer_contacts($lead['debtor_no']);
+        if (!empty($contacts)) {
+            $contact_id = $contacts[0]->getContactId();
+            if ($contact_id) {
+                $sql = "INSERT IGNORE INTO " . TB_PREF . "ksf_crm_contact_accounts
+                    (contact_id, debtor_no, is_primary, role)
+                    VALUES (" . (int) $contact_id . ", " . db_escape($converted_debtor_no) . ", 1, 'Converted Lead')";
+                db_query($sql, "Could not create contact account link");
+            }
+        }
     }
 
     return true;
@@ -1911,7 +2146,7 @@ function convert_lead($lead_id, $converted_debtor_no)
 function get_all_leads($status = null, $assigned_to = null)
 {
     $sql = "SELECT l.*, d.name as debtor_name
-        FROM " . TB_PREF . "fa_crm_leads l
+        FROM " . TB_PREF . "ksf_crm_leads l
         LEFT JOIN " . TB_PREF . "debtors_master d ON l.debtor_no = d.debtor_no
         WHERE 1=1";
 
@@ -1938,7 +2173,7 @@ function get_all_leads($status = null, $assigned_to = null)
 
 function add_contact_account($contact_id, $debtor_no, $is_primary = 0, $role = null)
 {
-    $sql = "INSERT IGNORE INTO " . TB_PREF . "fa_crm_contact_accounts
+    $sql = "INSERT IGNORE INTO " . TB_PREF . "ksf_crm_contact_accounts
         (contact_id, debtor_no, is_primary, role)
     VALUES (" . db_escape($contact_id) . ", " . db_escape($debtor_no) . ",
             " . (int)$is_primary . ", " . db_escape($role) . ")";
@@ -1947,7 +2182,7 @@ function add_contact_account($contact_id, $debtor_no, $is_primary = 0, $role = n
 
 function remove_contact_account($contact_id, $debtor_no)
 {
-    $sql = "DELETE FROM " . TB_PREF . "fa_crm_contact_accounts
+    $sql = "DELETE FROM " . TB_PREF . "ksf_crm_contact_accounts
         WHERE contact_id = " . db_escape($contact_id) . "
         AND debtor_no = " . db_escape($debtor_no);
     db_query($sql, "Could not remove contact-account relationship");
@@ -1956,7 +2191,7 @@ function remove_contact_account($contact_id, $debtor_no)
 function get_contact_accounts($contact_id)
 {
     $sql = "SELECT ca.*, d.name as debtor_name
-        FROM " . TB_PREF . "fa_crm_contact_accounts ca
+        FROM " . TB_PREF . "ksf_crm_contact_accounts ca
         LEFT JOIN " . TB_PREF . "debtors_master d ON ca.debtor_no = d.debtor_no
         WHERE ca.contact_id = " . db_escape($contact_id) . "
         ORDER BY ca.is_primary DESC";
@@ -1970,18 +2205,43 @@ function get_contact_accounts($contact_id)
 
 function get_account_contacts($debtor_no)
 {
-    $sql = "SELECT c.*, ca.is_primary, ca.role
-        FROM " . TB_PREF . "fa_crm_contacts c
-        LEFT JOIN " . TB_PREF . "fa_crm_contact_accounts ca ON c.id = ca.contact_id
-        WHERE ca.debtor_no = " . db_escape($debtor_no) . "
-        OR c.debtor_no = " . db_escape($debtor_no) . "
-        ORDER BY ca.is_primary DESC, c.is_primary DESC";
-    $result = db_query($sql, "Could not get account contacts");
-    $contacts = array();
-    while ($row = db_fetch_assoc($result)) {
-        $contacts[] = $row;
-    }
-    return $contacts;
+	// The contacts of an account are FA core's persons linked to that
+	// customer, reached through the shared contact resolver - never through
+	// a join against an FA core table. The CRM's own contact-account extras
+	// (is_primary, role) are read from the module's own table.
+	$contacts = array();
+
+	foreach (get_customer_contacts($debtor_no) as $contact) {
+		$contact_id = $contact->getContactId();
+		if ($contact_id === null) {
+			continue;
+		}
+
+		$row = array(
+			'id' => $contact_id,
+			'person_id' => $contact->getId(),
+			'first_name' => $contact->getName(),
+			'last_name' => $contact->getName2(),
+			'email' => $contact->getEmail(),
+			'phone' => $contact->getPhone(),
+			'debtor_no' => $debtor_no,
+			'is_primary' => 0,
+			'role' => null,
+		);
+
+		$extra = db_fetch_assoc(db_query(
+			"SELECT is_primary, role FROM " . TB_PREF . "ksf_crm_contact_accounts"
+			. " WHERE contact_id = " . (int) $contact_id . " LIMIT 1"
+		));
+		if ($extra) {
+			$row['is_primary'] = $extra['is_primary'];
+			$row['role'] = $extra['role'];
+		}
+
+		$contacts[] = $row;
+	}
+
+	return $contacts;
 }
 
 // ============================================================================
@@ -1990,7 +2250,7 @@ function get_account_contacts($debtor_no)
 
 function add_realm($realm_data)
 {
-    $sql = "INSERT INTO " . TB_PREF . "fa_crm_realms
+    $sql = "INSERT INTO " . TB_PREF . "ksf_crm_realms
         (name, description, requires_quote, requires_project, default_stage, stages_json, sort_order)
     VALUES (" . db_escape($realm_data['name']) . ",
             " . db_escape($realm_data['description']) . ",
@@ -2005,14 +2265,14 @@ function add_realm($realm_data)
 
 function get_realm($realm_id)
 {
-    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_realms WHERE id = " . db_escape($realm_id);
+    $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_realms WHERE id = " . db_escape($realm_id);
     $result = db_query($sql, "Could not get realm");
     return db_fetch_assoc($result);
 }
 
 function get_all_realms($active_only = true)
 {
-    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_realms";
+    $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_realms";
     if ($active_only) {
         $sql .= " WHERE inactive = 0";
     }
@@ -2027,7 +2287,7 @@ function get_all_realms($active_only = true)
 
 function update_realm($realm_id, $realm_data)
 {
-    $sql = "UPDATE " . TB_PREF . "fa_crm_realms SET
+    $sql = "UPDATE " . TB_PREF . "ksf_crm_realms SET
         name = " . db_escape($realm_data['name']) . ",
         description = " . db_escape($realm_data['description']) . ",
         requires_quote = " . (int)$realm_data['requires_quote'] . ",
@@ -2041,7 +2301,7 @@ function update_realm($realm_id, $realm_data)
 
 function delete_realm($realm_id)
 {
-    $sql = "DELETE FROM " . TB_PREF . "fa_crm_realms WHERE id = " . db_escape($realm_id);
+    $sql = "DELETE FROM " . TB_PREF . "ksf_crm_realms WHERE id = " . db_escape($realm_id);
     db_query($sql, "Could not delete realm");
 }
 
@@ -2051,7 +2311,7 @@ function delete_realm($realm_id)
 
 function add_quote($quote_data)
 {
-    $sql = "INSERT INTO " . TB_PREF . "fa_crm_quotes
+    $sql = "INSERT INTO " . TB_PREF . "ksf_crm_quotes
         (quote_no, opportunity_id, debtor_no, contact_id, quote_date, valid_until, status,
         subtotal, tax_rate, tax_amount, total, notes, terms, created_by)
     VALUES (" . db_escape($quote_data['quote_no']) . ",
@@ -2075,7 +2335,7 @@ function add_quote($quote_data)
 function get_quote($quote_id)
 {
     $sql = "SELECT q.*, d.name as customer_name
-        FROM " . TB_PREF . "fa_crm_quotes q
+        FROM " . TB_PREF . "ksf_crm_quotes q
         LEFT JOIN " . TB_PREF . "debtors_master d ON q.debtor_no = d.debtor_no
         WHERE q.id = " . db_escape($quote_id);
     $result = db_query($sql, "Could not get quote");
@@ -2085,9 +2345,9 @@ function get_quote($quote_id)
 function get_all_quotes($opportunity_id = null, $status = null)
 {
     $sql = "SELECT q.*, d.name as customer_name, o.opportunity_name
-        FROM " . TB_PREF . "fa_crm_quotes q
+        FROM " . TB_PREF . "ksf_crm_quotes q
         LEFT JOIN " . TB_PREF . "debtors_master d ON q.debtor_no = d.debtor_no
-        LEFT JOIN " . TB_PREF . "fa_crm_opportunities o ON q.opportunity_id = o.id
+        LEFT JOIN " . TB_PREF . "ksf_crm_opportunities o ON q.opportunity_id = o.id
         WHERE 1=1";
 
     if ($opportunity_id) {
@@ -2108,7 +2368,7 @@ function get_all_quotes($opportunity_id = null, $status = null)
 
 function update_quote($quote_id, $quote_data)
 {
-    $sql = "UPDATE " . TB_PREF . "fa_crm_quotes SET
+    $sql = "UPDATE " . TB_PREF . "ksf_crm_quotes SET
         opportunity_id = " . db_escape($quote_data['opportunity_id']) . ",
         debtor_no = " . db_escape($quote_data['debtor_no']) . ",
         contact_id = " . db_escape($quote_data['contact_id']) . ",
@@ -2127,15 +2387,15 @@ function update_quote($quote_id, $quote_data)
 
 function delete_quote($quote_id)
 {
-    $sql = "DELETE FROM " . TB_PREF . "fa_crm_quote_items WHERE quote_id = " . db_escape($quote_id);
+    $sql = "DELETE FROM " . TB_PREF . "ksf_crm_quote_items WHERE quote_id = " . db_escape($quote_id);
     db_query($sql, "Could not delete quote items");
-    $sql = "DELETE FROM " . TB_PREF . "fa_crm_quotes WHERE id = " . db_escape($quote_id);
+    $sql = "DELETE FROM " . TB_PREF . "ksf_crm_quotes WHERE id = " . db_escape($quote_id);
     db_query($sql, "Could not delete quote");
 }
 
 function add_quote_item($quote_id, $item_data)
 {
-    $sql = "INSERT INTO " . TB_PREF . "fa_crm_quote_items
+    $sql = "INSERT INTO " . TB_PREF . "ksf_crm_quote_items
         (quote_id, line_number, item_description, quantity, unit_price, unit, discount_percent, discount_amount, line_total)
     VALUES (" . db_escape($quote_id) . ",
             " . (int)$item_data['line_number'] . ",
@@ -2152,7 +2412,7 @@ function add_quote_item($quote_id, $item_data)
 
 function get_quote_items($quote_id)
 {
-    $sql = "SELECT * FROM " . TB_PREF . "fa_crm_quote_items
+    $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_quote_items
         WHERE quote_id = " . db_escape($quote_id) . "
         ORDER BY line_number";
     $result = db_query($sql, "Could not get quote items");
@@ -2214,7 +2474,7 @@ function create_project_from_opportunity($opportunity_id, $project_name = null)
     $project_id = db_insert_id();
 
     // Update opportunity with project link
-    $sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+    $sql = "UPDATE " . TB_PREF . "ksf_crm_opportunities SET
         project_id = " . db_escape($project_id) . "
     WHERE id = " . db_escape($opportunity_id);
     db_query($sql, "Could not update opportunity");
@@ -2250,7 +2510,7 @@ function close_opportunity_won($opportunity_id, $new_stage = 'closed_won')
     if (!$opp) return false;
 
     // Update stage to closed_won
-    $sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+    $sql = "UPDATE " . TB_PREF . "ksf_crm_opportunities SET
         stage = " . db_escape($new_stage) . ",
         status = 'won',
         actual_close_date = NOW()
@@ -2279,7 +2539,7 @@ function close_opportunity_won($opportunity_id, $new_stage = 'closed_won')
 
 function close_opportunity_lost($opportunity_id, $lost_reason)
 {
-    $sql = "UPDATE " . TB_PREF . "fa_crm_opportunities SET
+    $sql = "UPDATE " . TB_PREF . "ksf_crm_opportunities SET
         stage = 'closed_lost',
         status = 'lost',
         lost_reason = " . db_escape($lost_reason) . ",

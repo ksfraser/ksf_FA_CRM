@@ -125,7 +125,7 @@ table_header($th);
 $sql = "SELECT r.*,
     CONCAT(p.first_name, ' ', p.last_name) AS person_name,
     d.name AS account_name
-    FROM " . TB_PREF . "fa_crm_person_account_roles r
+    FROM " . TB_PREF . "ksf_crm_person_account_roles r
     LEFT JOIN " . TB_PREF . "crm_persons p ON r.person_id = p.id
     LEFT JOIN " . TB_PREF . "debtors_master d ON r.debtor_no = d.debtor_no
     ORDER BY r.id";

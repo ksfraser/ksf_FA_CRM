@@ -124,7 +124,7 @@ function rel_label($t) {
 
 // 3) Contact relationships (person-to-person)
 $cr_result = db_query("SELECT r.*, p_a.name AS a_name, p_b.name AS b_name
-    FROM " . TB_PREF . "fa_crm_contact_relationships r
+    FROM " . TB_PREF . "ksf_crm_contact_relationships r
     LEFT JOIN " . TB_PREF . "crm_persons p_a ON r.person_a_id = p_a.id
     LEFT JOIN " . TB_PREF . "crm_persons p_b ON r.person_b_id = p_b.id
     ORDER BY r.id");
@@ -144,7 +144,7 @@ while ($cr = db_fetch($cr_result)) {
 }
 
 // 4) Account relationships (account-to-account)
-$ar_result = db_query("SELECT * FROM " . TB_PREF . "fa_crm_account_relationships ORDER BY id");
+$ar_result = db_query("SELECT * FROM " . TB_PREF . "ksf_crm_account_relationships ORDER BY id");
 while ($ar = db_fetch($ar_result)) {
     $from = 'account_' . $ar['parent_debtor_no'];
     $to = 'account_' . $ar['child_debtor_no'];
@@ -166,7 +166,7 @@ while ($ar = db_fetch($ar_result)) {
 
 // 5) Person-account roles
 $pr_result = db_query("SELECT r.*, p.name AS person_name, d.name AS account_name
-    FROM " . TB_PREF . "fa_crm_person_account_roles r
+    FROM " . TB_PREF . "ksf_crm_person_account_roles r
     LEFT JOIN " . TB_PREF . "crm_persons p ON r.person_id = p.id
     LEFT JOIN " . TB_PREF . "debtors_master d ON r.debtor_no = d.debtor_no
     ORDER BY r.id");

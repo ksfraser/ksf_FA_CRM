@@ -110,7 +110,7 @@ class FaPersonRepository implements PersonRepositoryInterface
     {
         $rows = [];
         $sql = "SELECT DISTINCT p.* FROM " . TB_PREF . "crm_persons p
-            JOIN " . TB_PREF . "fa_crm_contact_relationships r
+            JOIN " . TB_PREF . "ksf_crm_contact_relationships r
               ON p.id = r.person_a_id OR p.id = r.person_b_id
             WHERE (r.person_a_id = " . db_escape($personId) . "
                OR r.person_b_id = " . db_escape($personId) . ")
@@ -187,7 +187,7 @@ class FaRelationshipRepository implements RelationshipRepositoryInterface
     public function findByPerson(int $personId): array
     {
         $rows = [];
-        $sql = "SELECT * FROM " . TB_PREF . "fa_crm_contact_relationships
+        $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_contact_relationships
             WHERE person_a_id = " . db_escape($personId) . "
                OR person_b_id = " . db_escape($personId) . "
             ORDER BY relation_type, id";
@@ -214,7 +214,7 @@ class FaRelationshipRepository implements RelationshipRepositoryInterface
         $in = implode(',', $escaped);
 
         $rows = [];
-        $sql = "SELECT * FROM " . TB_PREF . "fa_crm_contact_relationships
+        $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_contact_relationships
             WHERE person_a_id IN ($in) OR person_b_id IN ($in)
             ORDER BY relation_type, id";
         $result = db_query($sql, "could not get relationships for persons");
@@ -276,7 +276,7 @@ class FaEventRepository implements EventRepositoryInterface
     public function findByEntity(string $entityType, int $entityId): array
     {
         $rows = [];
-        $sql = "SELECT * FROM " . TB_PREF . "fa_crm_life_events
+        $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_life_events
             WHERE entity_type = " . db_escape($entityType) . "
               AND entity_id = " . db_escape($entityId) . "
             ORDER BY event_date, event_type";

@@ -171,7 +171,7 @@ submit_center($Mode == 'EDIT_ITEM' ? _("Update Lead") : _("Add Lead"), true, '',
 //--------------------------------------------------------------------------------
 
 $sql = "SELECT l.id, l.debtor_no, d.name as customer_name, l.lead_source, l.lead_status, l.rating, l.created_at
-    FROM " . TB_PREF . "fa_crm_leads l
+    FROM " . TB_PREF . "ksf_crm_leads l
     LEFT JOIN " . TB_PREF . "debtors_master d ON l.debtor_no = d.debtor_no
     WHERE l.converted_to_debtor_no IS NULL
     ORDER BY l.created_at DESC";

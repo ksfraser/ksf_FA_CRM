@@ -127,27 +127,103 @@ class EmailImportService
         return trim($address_string);
     }
 
+    /**
+     * Find the contact a message came from or went to.
+     *
+     * A contact is FA core's person and the relation that links the person
+     * to an entity, so the lookup goes through the shared contact resolver
+     * (ksfraser/ksf-fa-common) rather than a table of the module's own.
+     *
+     * FA's native CRM functions never expose crm_contacts.entity_id, so the
+     * customer a contact belongs to cannot be derived from the contact
+     * itself; it is read from the CRM's own contact-account table when the
+     * CRM has recorded it.
+     *
+     * @param string $from_email The From address
+     * @param string $to_email   The To address
+     * @return array|null id, person_id, debtor_no
+     */
     private function findContactByEmail($from_email, $to_email)
     {
-        global $db;
-
-        $sql = "SELECT c.id, c.debtor_no FROM " . TB_PREF . "fa_crm_contacts c
-                WHERE c.email = " . db_escape($from_email) . " AND c.inactive = 0
-                LIMIT 1";
-        $result = db_query($sql);
-        if ($contact = db_fetch($result)) {
-            return $contact;
+        $resolver = $this->contactResolver();
+        if ($resolver === null) {
+            return null;
         }
 
-        $sql = "SELECT c.id, c.debtor_no FROM " . TB_PREF . "fa_crm_contacts c
-                WHERE c.email = " . db_escape($to_email) . " AND c.inactive = 0
-                LIMIT 1";
-        $result = db_query($sql);
-        if ($contact = db_fetch($result)) {
-            return $contact;
+        foreach (array($from_email, $to_email) as $email) {
+            if (trim((string) $email) === '') {
+                continue;
+            }
+
+            $contacts = $resolver->findByEmail($email);
+            if (empty($contacts)) {
+                continue;
+            }
+
+            $contact = $contacts[0];
+            $contact_id = $contact->getContactId();
+            if ($contact_id === null) {
+                continue;
+            }
+
+            return array(
+                'id' => $contact_id,
+                'person_id' => $contact->getId(),
+                'debtor_no' => $this->findDebtorForContact($contact_id)
+            );
         }
 
         return null;
+    }
+
+    /**
+     * The customer a contact is linked to, from the CRM's own table.
+     *
+     * @param int $contact_id Contact relation id
+     * @return string|null
+     */
+    private function findDebtorForContact($contact_id)
+    {
+        global $db;
+
+        $row = db_fetch_assoc(db_query(
+            "SELECT debtor_no FROM " . TB_PREF . "ksf_crm_contact_accounts"
+            . " WHERE contact_id = " . (int) $contact_id . " LIMIT 1"
+        ));
+
+        return $row ? $row['debtor_no'] : null;
+    }
+
+    /**
+     * The shared contact resolver, or null when the package is not installed.
+     *
+     * @return \ksfraser\FrontAccounting\Common\ContactResolver\Contract\ContactResolverInterface|null
+     */
+    private function contactResolver(): ?object
+    {
+        static $resolver = false;
+
+        if ($resolver !== false) {
+            return $resolver;
+        }
+
+        $autoload = dirname(__DIR__) . '/vendor/autoload.php';
+        if (!file_exists($autoload)) {
+            $resolver = null;
+            return $resolver;
+        }
+
+        require_once $autoload;
+
+        $class = 'ksfraser\\FrontAccounting\\Common\\ContactResolver\\ContactResolver';
+        if (!class_exists($class)) {
+            $resolver = null;
+            return $resolver;
+        }
+
+        $resolver = new $class();
+
+        return $resolver;
     }
 
     public function saveEmailAsCommunication($email_data)
@@ -477,7 +553,7 @@ class EmailImportService
     {
         global $db;
 
-        $sql = "SELECT * FROM " . TB_PREF . "crm_meetings WHERE ics_uid = " . db_escape($ics_uid) . " LIMIT 1";
+        $sql = "SELECT * FROM " . TB_PREF . "ksf_crm_meetings WHERE ics_uid = " . db_escape($ics_uid) . " LIMIT 1";
         $result = db_query($sql);
         return db_fetch($result);
     }

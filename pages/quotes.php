@@ -107,7 +107,7 @@ if ($Mode == 'EDIT_ITEM')
 
 if ($Mode == 'RESET')
 {
-    $next_no = "Q-" . date('Ymd') . "-" . str_pad(db_num_rows(db_query("SELECT id FROM " . TB_PREF . "fa_crm_quotes")) + 1, 4, '0', STR_PAD_LEFT);
+    $next_no = "Q-" . date('Ymd') . "-" . str_pad(db_num_rows(db_query("SELECT id FROM " . TB_PREF . "ksf_crm_quotes")) + 1, 4, '0', STR_PAD_LEFT);
     $_POST['quote_no'] = $next_no;
     $_POST['opportunity_id'] = '';
     $_POST['debtor_no'] = '';
@@ -191,9 +191,9 @@ submit_center($Mode == 'EDIT_ITEM' ? _("Update Quote") : _("Add Quote"), true, '
 //--------------------------------------------------------------------------------
 
 $sql = "SELECT q.id, q.quote_no, q.quote_date, q.valid_until, q.status, q.total, d.name as customer_name, o.opportunity_name
-    FROM " . TB_PREF . "fa_crm_quotes q
+    FROM " . TB_PREF . "ksf_crm_quotes q
     LEFT JOIN " . TB_PREF . "debtors_master d ON q.debtor_no = d.debtor_no
-    LEFT JOIN " . TB_PREF . "fa_crm_opportunities o ON q.opportunity_id = o.id
+    LEFT JOIN " . TB_PREF . "ksf_crm_opportunities o ON q.opportunity_id = o.id
     ORDER BY q.created_at DESC";
 
 $result = db_query($sql, "Could not get quotes");

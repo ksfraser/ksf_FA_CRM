@@ -128,7 +128,7 @@ submit_center($Mode == 'EDIT_ITEM' ? _("Update Realm") : _("Add Realm"), true, '
 //--------------------------------------------------------------------------------
 
 $sql = "SELECT id, name, description, requires_quote, requires_project, default_stage, sort_order, inactive
-    FROM " . TB_PREF . "fa_crm_realms
+    FROM " . TB_PREF . "ksf_crm_realms
     ORDER BY sort_order, name";
 
 $result = db_query($sql, "Could not get realms");

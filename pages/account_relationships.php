@@ -123,7 +123,7 @@ table_header($th);
 $sql = "SELECT r.*,
     d_parent.name AS parent_name,
     d_child.name AS child_name
-    FROM " . TB_PREF . "fa_crm_account_relationships r
+    FROM " . TB_PREF . "ksf_crm_account_relationships r
     LEFT JOIN " . TB_PREF . "debtors_master d_parent ON r.parent_debtor_no = d_parent.debtor_no
     LEFT JOIN " . TB_PREF . "debtors_master d_child ON r.child_debtor_no = d_child.debtor_no
     ORDER BY r.id";

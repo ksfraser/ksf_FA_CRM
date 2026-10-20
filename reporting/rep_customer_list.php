@@ -43,16 +43,27 @@ function get_customer_list($salesman = null, $area = null, $show_inactive = fals
 
     $salesman_code = $current_user->salesman;
 
-    $sql = "SELECT d.debtor_no, d.name, d.address, d.phone, d.email,
-            d.fax, d.gst_no, d.tax_ref, d.credit_status, d.credit_limit,
-            d.balance, d.discount, d.pymt_discount, d.inv_addr_branch,
+    // FA core's debtor table is 0_debtors_master (plural); 0_debtor_master
+    // is the name it had in FrontAccounting 2.1 and exists nowhere today.
+    //
+    // The debtor record has no phone column - the phone belongs to the
+    // customer's CONTACT, which is FA core's person (see
+    // rep_customer_contact_phone() below) - and it has no balance column
+    // either: the balance is the customer's ledger position, summed here
+    // exactly as FA core's own get_customer_details() does it.
+    $sql = "SELECT d.debtor_no, d.name, d.address, d.debtor_ref, d.curr_code,
+            d.credit_status, d.credit_limit, d.inactive,
             c.branch_code, c.branch_name, c.salesman, c.area,
-            c.tax_group_id, c.default_location, c.discount,
             s.salesman_name, a.description as area_name,
             ca.name as credit_status_name,
-            IF(d.balance > d.credit_limit, 'OVER_LIMIT',
+            (SELECT IFNULL(SUM(IF(dt.type IN (" . ST_CUSTCREDIT . ", " . ST_CUSTPAYMENT . ", " . ST_BANKDEPOSIT . "), -1, 1)
+                * (dt.ov_amount + dt.ov_gst + dt.ov_freight + dt.ov_freight_tax + dt.ov_discount)), 0)
+             FROM " . TB_PREF . "debtor_trans dt WHERE dt.debtor_no = d.debtor_no) as balance,
+            IF((SELECT IFNULL(SUM(IF(dt.type IN (" . ST_CUSTCREDIT . ", " . ST_CUSTPAYMENT . ", " . ST_BANKDEPOSIT . "), -1, 1)
+                * (dt.ov_amount + dt.ov_gst + dt.ov_freight + dt.ov_freight_tax + dt.ov_discount)), 0)
+             FROM " . TB_PREF . "debtor_trans dt WHERE dt.debtor_no = d.debtor_no) > d.credit_limit, 'OVER_LIMIT',
                 IF(d.credit_status = 1, 'HOLD', 'OK')) as status
-            FROM " . TB_PREF . "debtor_master d
+            FROM " . TB_PREF . "debtors_master d
             LEFT JOIN " . TB_PREF . "cust_branch c ON d.debtor_no = c.debtor_no
             LEFT JOIN " . TB_PREF . "salesman s ON c.salesman = s.salesman_code
             LEFT JOIN " . TB_PREF . "areas a ON c.area = a.area_code
@@ -78,6 +89,38 @@ function get_customer_list($salesman = null, $area = null, $show_inactive = fals
     $sql .= " ORDER BY d.name, c.branch_name";
 
     return db_query($sql, "No customer list returned");
+}
+
+/**
+ * The customer's contact phone number.
+ *
+ * FA core's debtor record has no phone column: the phone belongs to the
+ * customer's CONTACT, which is a person in FA core's contact registry. The
+ * customer's contacts come from FA's own get_customer_contacts().
+ *
+ * @param string $debtor_no Customer (FA debtor_no)
+ * @return string
+ */
+function rep_customer_contact_phone($debtor_no)
+{
+    static $cache = array();
+
+    if (isset($cache[$debtor_no])) {
+        return $cache[$debtor_no];
+    }
+
+    $phone = '';
+    // FA's own function: the customer's contacts are persons in FA core's
+    // contact registry.
+    $contacts = get_customer_contacts($debtor_no);
+    if (!empty($contacts)) {
+        $first = $contacts[0];
+        $phone = is_array($first) ? (string) ($first['phone'] ?? '') : (string) $first->getPhone();
+    }
+
+    $cache[$debtor_no] = $phone;
+
+    return $phone;
 }
 
 function print_customer_list()
@@ -133,7 +176,7 @@ function print_customer_list()
         $rep->NewLine();
         $rep->TextCol(0, 1, $row['debtor_no']);
         $rep->TextCol(1, 2, $row['name']);
-        $rep->TextCol(2, 3, $row['phone']);
+        $rep->TextCol(2, 3, rep_customer_contact_phone($row['debtor_no']));
         $rep->TextCol(3, 4, $row['salesman_name'] ?? '');
         $rep->TextCol(4, 5, $row['area_name'] ?? '');
         $rep->AmountCol(5, 6, $row['balance'], 2);

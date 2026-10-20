@@ -37,7 +37,7 @@ function get_low_gp_sales($from_date, $to_date, $category, $location, $threshold
         ssd.quantity * ssd.unit_price as total_amount
         FROM " . TB_PREF . "debtor_trans_details ssd
         INNER JOIN " . TB_PREF . "debtor_trans dt ON ssd.debtor_trans_type = dt.type AND ssd.debtor_trans_no = dt.trans_no
-        INNER JOIN " . TB_PREF . "debtor_master dm ON dt.debtor_no = dm.debtor_no
+        INNER JOIN " . TB_PREF . "debtors_master dm ON dt.debtor_no = dm.debtor_no
         INNER JOIN " . TB_PREF . "stock_master sm ON ssd.stock_id = sm.stock_id
         WHERE dt.type = " . ST_SALESINVOICE . "
         AND dt.tran_date >= '$from'

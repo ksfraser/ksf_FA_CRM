@@ -120,7 +120,7 @@ table_header($th);
 $sql = "SELECT r.*,
     CONCAT(pa.first_name, ' ', pa.last_name) AS person_a_name,
     CONCAT(pb.first_name, ' ', pb.last_name) AS person_b_name
-    FROM " . TB_PREF . "fa_crm_contact_relationships r
+    FROM " . TB_PREF . "ksf_crm_contact_relationships r
     LEFT JOIN " . TB_PREF . "crm_persons pa ON r.person_a_id = pa.id
     LEFT JOIN " . TB_PREF . "crm_persons pb ON r.person_b_id = pb.id
     ORDER BY r.id";

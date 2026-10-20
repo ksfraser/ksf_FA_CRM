@@ -99,7 +99,7 @@ echo '<br>';
 
 if ($selected_id) {
 	// Editing existing customer type
-	$result = db_query("SELECT * FROM " . TB_PREF . "crm_customer_types WHERE id = " . (int)$selected_id);
+	$result = db_query("SELECT * FROM " . TB_PREF . "ksf_crm_customer_types WHERE id = " . (int)$selected_id);
 	$myrow = db_fetch($result);
 
 	$_POST['type_name'] = $myrow['type_name'];
@@ -142,7 +142,7 @@ if (get_post('show_inactive') == 1)
 else
 	$show_inactive = 0;
 
-$sql = "SELECT * FROM " . TB_PREF . "crm_customer_types";
+$sql = "SELECT * FROM " . TB_PREF . "ksf_crm_customer_types";
 if (!$show_inactive)
 	$sql .= " WHERE inactive = 0";
 $sql .= " ORDER BY type_name";

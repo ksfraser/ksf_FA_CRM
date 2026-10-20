@@ -195,9 +195,9 @@ function crm_dashboard_widget()
 		COUNT(comm.id) as total_communications,
 		COUNT(CASE WHEN comm.status = 'scheduled' THEN 1 END) as scheduled_communications,
 		COUNT(CASE WHEN o.status IN ('prospect', 'qualified') THEN 1 END) as active_opportunities
-	FROM " . TB_PREF . "crm_customers c
-	LEFT JOIN " . TB_PREF . "crm_communications comm ON c.debtor_no = comm.debtor_no
-	LEFT JOIN " . TB_PREF . "crm_opportunities o ON c.debtor_no = o.debtor_no";
+	FROM " . TB_PREF . "ksf_crm_customers c
+	LEFT JOIN " . TB_PREF . "ksf_crm_communications comm ON c.debtor_no = comm.debtor_no
+	LEFT JOIN " . TB_PREF . "ksf_crm_opportunities o ON c.debtor_no = o.debtor_no";
 
 	$result = db_query($sql);
 	$stats = db_fetch($result);
@@ -378,7 +378,7 @@ function customer_segments_list_row($label, $name, $value = null)
 {
 	global $db;
 
-	$sql = "SELECT id, segment_name FROM " . TB_PREF . "crm_customer_segments WHERE inactive = 0 ORDER BY segment_name";
+	$sql = "SELECT id, segment_name FROM " . TB_PREF . "ksf_crm_customer_segments WHERE inactive = 0 ORDER BY segment_name";
 	$result = db_query($sql);
 
 	$options = array('' => _("Select Segment"));
@@ -398,7 +398,7 @@ function territories_list_row($label, $name, $value = null)
 {
 	global $db;
 
-	$sql = "SELECT id, territory_name FROM " . TB_PREF . "crm_territories WHERE inactive = 0 ORDER BY territory_name";
+	$sql = "SELECT id, territory_name FROM " . TB_PREF . "ksf_crm_territories WHERE inactive = 0 ORDER BY territory_name";
 	$result = db_query($sql);
 
 	$options = array('' => _("Select Territory"));
@@ -418,7 +418,7 @@ function territories_list_cells($label, $name, $value = null, $new_label = null,
 {
 	global $db;
 
-	$sql = "SELECT id, territory_name FROM " . TB_PREF . "crm_territories";
+	$sql = "SELECT id, territory_name FROM " . TB_PREF . "ksf_crm_territories";
 	if (!$show_inactive) {
 		$sql .= " WHERE inactive = 0";
 	}
@@ -465,7 +465,7 @@ function opportunity_row($label, $name, $value = null)
 {
 	global $db;
 
-	$sql = "SELECT id, opportunity_name FROM " . TB_PREF . "fa_crm_opportunities WHERE status != 'cancelled' ORDER BY opportunity_name";
+	$sql = "SELECT id, opportunity_name FROM " . TB_PREF . "ksf_crm_opportunities WHERE status != 'cancelled' ORDER BY opportunity_name";
 	$result = db_query($sql);
 
 	$options = array('' => _("Select Opportunity"));
@@ -480,25 +480,45 @@ function opportunity_row($label, $name, $value = null)
 
 /**
  * Contacts dropdown row (filtered by customer/debtor)
+ *
+ * The contacts are FA core's persons: the customer's own contacts come from
+ * the shared contact resolver, and the unfiltered list comes from FA's native
+ * relation query. There is no CRM-owned contact table.
  */
 function contact_row($label, $name, $value = null, $debtor_no = null)
 {
 	global $db;
 
-	$sql = "SELECT id, first_name, last_name, email FROM " . TB_PREF . "fa_crm_contacts WHERE active = 1";
-	if ($debtor_no) {
-		$sql .= " AND debtor_no = " . (int)$debtor_no;
-	}
-	$sql .= " ORDER BY last_name, first_name";
-	$result = db_query($sql);
-
 	$options = array('' => _("Select Contact"));
-	while ($contact = db_fetch($result)) {
-		$display = $contact['last_name'] . ', ' . $contact['first_name'];
-		if ($contact['email']) {
-			$display .= ' (' . $contact['email'] . ')';
+
+	if ($debtor_no) {
+		foreach (get_customer_contacts($debtor_no) as $contact) {
+			$contact_id = $contact->getContactId();
+			if ($contact_id === null) {
+				continue;
+			}
+			$display = trim($contact->getName2() . ', ' . $contact->getName());
+			if ($contact->getEmail()) {
+				$display .= ' (' . $contact->getEmail() . ')';
+			}
+			$options[$contact_id] = $display;
 		}
-		$options[$contact['id']] = $display;
+	} elseif (crm_native_functions_loaded()) {
+		// Every person that has at least one contact relation - a person
+		// without a relation is not a contact. FA's native relation query is
+		// the source; there is no join against an FA core table here.
+		$result = get_crm_persons(null, null, null, null, true);
+		while ($person = db_fetch($result)) {
+			$contact_id = isset($person['contact_id']) ? $person['contact_id'] : null;
+			if ($contact_id === null) {
+				continue;
+			}
+			$display = trim(($person['name2'] ?? '') . ', ' . ($person['name'] ?? ''));
+			if (!empty($person['email'])) {
+				$display .= ' (' . $person['email'] . ')';
+			}
+			$options[$contact_id] = $display;
+		}
 	}
 
 	echo '<tr><td class="label">' . $label . '</td><td>';
@@ -513,7 +533,7 @@ function contact_roles_list_row($label, $name, $value = null)
 {
 	global $db;
 
-	$sql = "SELECT id, role_name FROM " . TB_PREF . "crm_contact_roles WHERE inactive = 0 ORDER BY role_name";
+	$sql = "SELECT id, role_name FROM " . TB_PREF . "ksf_crm_contact_roles WHERE inactive = 0 ORDER BY role_name";
 	$result = db_query($sql);
 
 	$options = array('' => _("Select Role"));
@@ -599,8 +619,8 @@ function display_customer_opportunities($customer_id)
 	global $db;
 
 	$sql = "SELECT o.*, s.stage_name, u.user_id as assigned_to_name
-	FROM " . TB_PREF . "crm_opportunities o
-	LEFT JOIN " . TB_PREF . "crm_opportunity_stages s ON o.stage_id = s.id
+	FROM " . TB_PREF . "ksf_crm_opportunities o
+	LEFT JOIN " . TB_PREF . "ksf_crm_opportunity_stages s ON o.stage_id = s.id
 	LEFT JOIN " . TB_PREF . "users u ON o.assigned_to = u.id
 	WHERE o.debtor_no = " . db_escape($customer_id) . "
 	ORDER BY o.created_at DESC";
@@ -869,7 +889,7 @@ function meeting_rooms_list_row($label, $name, $value = null, $location_type = n
 {
 	global $db;
 
-	$sql = "SELECT id, room_name, room_type FROM " . TB_PREF . "crm_meeting_rooms WHERE active = 1";
+	$sql = "SELECT id, room_name, room_type FROM " . TB_PREF . "ksf_crm_meeting_rooms WHERE active = 1";
 
 	if ($location_type) {
 		$sql .= " AND room_type = " . db_escape($location_type);
@@ -987,7 +1007,7 @@ function opportunity_list_row($label, $name, $value = null, $customer_id = null)
 {
 	global $db;
 
-	$sql = "SELECT id, opportunity_name FROM " . TB_PREF . "crm_opportunities WHERE 1=1";
+	$sql = "SELECT id, opportunity_name FROM " . TB_PREF . "ksf_crm_opportunities WHERE 1=1";
 
 	if ($customer_id) {
 		$sql .= " AND customer_id = " . db_escape($customer_id);

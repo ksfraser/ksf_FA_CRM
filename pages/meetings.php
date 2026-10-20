@@ -163,7 +163,7 @@ function display_meeting_attendees($meeting_id)
 {
 	$attendees = get_meeting_attendees($meeting_id);
 
-	if (db_num_rows($attendees) == 0) {
+	if (count($attendees) == 0) {
 		echo '<p>' . _("No attendees added yet.") . '</p>';
 		return;
 	}
@@ -171,7 +171,7 @@ function display_meeting_attendees($meeting_id)
 	start_table(TABLESTYLE);
 	table_header(array(_("Name"), _("Type"), _("Role"), _("Email"), _("Phone"), _("Response"), ""));
 
-	while ($attendee = db_fetch($attendees)) {
+	foreach ($attendees as $attendee) {
 		start_row();
 
 		$name = '';
