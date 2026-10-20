@@ -221,6 +221,11 @@ class hooks_ksf_FA_CRM extends hooks {
 
         $this->add_email_scheduling_columns($target);
 
+        // ksf-legacy-table-name: the CRM's own mailbox table was named
+        // 0_fa_crm_email_accounts before the cutover. This upgrade path reads
+        // it once, copies the mailboxes into EmailManager's table, and
+        // retire_misnamed_tables() drops the legacy table afterwards. It only
+        // fires on an install that has not been cut over yet.
         db_query("INSERT INTO " . TB_PREF . $target . "
             (account_name, email_address, account_type, server_host, server_port, encryption,
              username, password, sync_folder, is_active, auto_import, import_frequency,
